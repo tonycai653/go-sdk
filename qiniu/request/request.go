@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/qiniu"
+	"github.com/qiniu/go-sdk/qiniu/credentials"
 	"github.com/qiniu/go-sdk/qiniu/qerr"
 )
 
@@ -47,7 +48,7 @@ type Request struct {
 	Retryer
 	AttemptTime            time.Time
 	Time                   time.Time
-	Api                    qiniu.API
+	Api                    *API
 	HTTPRequest            *http.Request
 	HTTPResponse           *http.Response
 	Body                   io.ReadSeeker
@@ -77,25 +78,60 @@ type Request struct {
 	safeBody *offsetReader
 }
 
-// New returns a new Request pointer for the service API
-// operation and parameters.
-//
-// Params is any value of input parameters to be the request payload.
-// Data is pointer value to an object which the request's response
-// payload will be deserialized to.
-func New(cfg qiniu.Config, handlers Handlers, retryer Retryer,
-	operation qiniu.API, params interface{}, data interface{}) *Request {
+// API 封装了向七牛API发起请求要用到的信息
+type API struct {
+	Path        string
+	Method      string
+	Host        string
+	ContentType string
+	Scheme      string
+	TokenType   credentials.TokenType
 
-	method := operation.GetMethod()
+	// 服务名字
+	ServiceName string
+
+	// 接口名字
+	APIName string
+}
+
+func (a *API) Name() string {
+	return a.APIName
+}
+
+func (a *API) url() string {
+	var scheme string
+
+	if a.Scheme == "" {
+		scheme = "http"
+	} else {
+		scheme = a.Scheme
+	}
+	host := strings.TrimRight(a.Host, "/")
+	path := strings.TrimLeft(a.Path, "/")
+
+	return strings.Join([]string{scheme, "://", host, "/", path}, "")
+}
+
+// New 返回Request指针， 用于发起API请求
+// Params 是Request的Body部分， 发出的http请求的body部分
+// Data 是http响应的响应体反序列化到的结构体
+func New(cfg qiniu.Config, handlers Handlers, retryer Retryer,
+	operation *API, params interface{}, data interface{}) *Request {
+
+	method := operation.Method
 	if method == "" {
 		method = "POST"
 	}
+	contentType := operation.ContentType
+	if contentType == "" {
+		contentType = "application/json"
+	}
 
 	httpReq, _ := http.NewRequest(method, "", nil)
-	httpReq.Header = operation.GetHeaders()
+	httpReq.Header.Set("Content-Type", contentType)
 
 	var err error
-	httpReq.URL, err = url.Parse(operation.GetURL())
+	httpReq.URL, err = url.Parse(operation.url())
 	if err != nil {
 		httpReq.URL = &url.URL{}
 		err = qerr.New("InvalidEndpointURL", "invalid endpoint uri", err)
@@ -115,7 +151,7 @@ func New(cfg qiniu.Config, handlers Handlers, retryer Retryer,
 		Params:      params,
 		Error:       err,
 		Data:        data,
-		ServiceName: operation.ServiceName(),
+		ServiceName: operation.ServiceName,
 	}
 	r.SetBufferBody([]byte{})
 
@@ -336,7 +372,7 @@ func (r *Request) getNextRequestBody() (io.ReadCloser, error) {
 		// This would only happen if a api.ReaderSeekerCloser was used with
 		// a io.Reader that was not also an io.Seeker, or did not implement
 		// Len() method.
-		switch r.Api.GetMethod() {
+		switch r.HTTPRequest.Method {
 		case "GET", "HEAD", "DELETE":
 			body = http.NoBody
 		default:

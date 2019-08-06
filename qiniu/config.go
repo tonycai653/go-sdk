@@ -41,15 +41,15 @@ const (
 // interface.
 type RequestRetryer interface{}
 
-// A Config provides service configuration for service clients. By default,
-// all clients will use the defaults.DefaultConfig structure.
+// Config 为服务客户端提供配置选项
+// 默认所有的服务客户端都使用了defaults.DefaultConfig函数返回的默认配置
 type Config struct {
-	// Enables verbose error printing of all credential chain errors.
-	// Should be used when wanting to see all errors while attempting to
-	// retrieve credentials.
+	// 开启详细密钥获取错误的详细错误链
+	// 只有当想要看到获取密钥过程中的所有错误链是才开启这个选项
+	// 默认该值为`false`
 	CredentialsChainVerboseErrors *bool
 
-	// The credentials object to use when signing requests.
+	// 密钥
 	Credentials *credentials.Credentials
 
 	// EnforceShouldRetryCheck is used in the AfterRetryHandler to always call

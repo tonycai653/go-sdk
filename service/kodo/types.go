@@ -13,6 +13,7 @@ type FileInfo struct {
 	Type     int    `json:"type"`
 }
 
+// String 返回表示文件信息的字符串
 func (f *FileInfo) String() string {
 	str := ""
 	str += fmt.Sprintf("Hash:     %s\n", f.Hash)

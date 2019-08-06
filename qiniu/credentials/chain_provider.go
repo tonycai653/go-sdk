@@ -27,8 +27,7 @@ var (
 // Retrieve() will return the error ErrNoValidProvidersFoundInChain.
 //
 // If a Provider is found which returns valid credentials Value ChainProvider
-// will cache that Provider for all calls to IsExpired(), until Retrieve is
-// called again.
+// will cache that Provider.
 type ChainProvider struct {
 	Providers     []Provider
 	curr          Provider
@@ -46,8 +45,7 @@ func NewChainCredentials(providers []Provider) *Credentials {
 // Retrieve returns the credentials value or error if no provider returned
 // without error.
 //
-// If a provider is found it will be cached and any calls to IsExpired()
-// will return the expired state of the cached provider.
+// If a provider is found it will be cached
 func (c *ChainProvider) Retrieve() (Value, error) {
 	var errs []error
 	for _, p := range c.Providers {
@@ -66,14 +64,4 @@ func (c *ChainProvider) Retrieve() (Value, error) {
 		err = qerr.NewBatchError("NoCredentialProviders", "no valid providers in chain", errs)
 	}
 	return Value{}, err
-}
-
-// IsExpired will returned the expired state of the currently cached provider
-// if there is one.  If there is no current provider, true will be returned.
-func (c *ChainProvider) IsExpired() bool {
-	if c.curr != nil {
-		return c.curr.IsExpired()
-	}
-
-	return true
 }

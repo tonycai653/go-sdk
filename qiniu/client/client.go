@@ -61,7 +61,7 @@ func New(cfg qiniu.Config, handlers request.Handlers, options ...func(*BaseClien
 
 // NewRequest returns a new Request pointer for the service API
 // operation and parameters.
-func (c *BaseClient) NewRequest(operation qiniu.API, params interface{}, data interface{}) *request.Request {
+func (c *BaseClient) NewRequest(operation *request.API, params interface{}, data interface{}) *request.Request {
 	return request.New(c.Config, c.Handlers, c.Retryer, operation, params, data)
 }
 

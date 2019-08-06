@@ -28,7 +28,6 @@ var (
 //
 // * Secret Access Key: QINIU_SECRET_ACCESS_KEY or QINIU_SECRET_KEY
 type EnvProvider struct {
-	retrieved bool
 }
 
 // NewEnvCredentials returns a pointer to a new Credentials object
@@ -39,7 +38,6 @@ func NewEnvCredentials() *Credentials {
 
 // Retrieve retrieves the keys from the environment.
 func (e *EnvProvider) Retrieve() (Value, error) {
-	e.retrieved = false
 
 	id := os.Getenv("QINIU_ACCESS_KEY_ID")
 	if id == "" {
@@ -59,15 +57,9 @@ func (e *EnvProvider) Retrieve() (Value, error) {
 		return Value{ProviderName: EnvProviderName}, ErrSecretAccessKeyNotFound
 	}
 
-	e.retrieved = true
 	return Value{
 		AccessKey:    id,
 		SecretKey:    []byte(secret),
 		ProviderName: EnvProviderName,
 	}, nil
-}
-
-// IsExpired returns if the credentials have been retrieved.
-func (e *EnvProvider) IsExpired() bool {
-	return !e.retrieved
 }

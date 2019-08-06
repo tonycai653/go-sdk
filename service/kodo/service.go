@@ -1,13 +1,10 @@
 package kodo
 
 import (
-	"fmt"
-
 	"github.com/qiniu/go-sdk/qiniu"
 	"github.com/qiniu/go-sdk/qiniu/client"
 	"github.com/qiniu/go-sdk/qiniu/corehandlers"
 	"github.com/qiniu/go-sdk/qiniu/credentials"
-	"github.com/qiniu/go-sdk/qiniu/http"
 	"github.com/qiniu/go-sdk/qiniu/request"
 )
 
@@ -41,10 +38,10 @@ func newClient(cfg qiniu.Config, handlers request.Handlers) *Kodo {
 	return svc
 }
 
-func (c *Kodo) newRequest(op qiniu.API, params, data interface{}) *request.Request {
+func (c *Kodo) newRequest(op *request.API, params, data interface{}) *request.Request {
 	req := c.NewRequest(op, params, data)
 
-	switch op.GetTokenType() {
+	switch op.TokenType {
 	case credentials.TokenQiniu:
 		req.Handlers.Sign.PushBackNamed(corehandlers.QiniuTokenRequestHandler)
 	case credentials.TokenQBox:
@@ -53,19 +50,4 @@ func (c *Kodo) newRequest(op qiniu.API, params, data interface{}) *request.Reque
 	}
 
 	return req
-}
-
-// Stat发起stat请求， 获取存储在七牛空间的文件信息
-func (c *Kodo) Stat(bucket, key string) (*FileInfo, error) {
-	req, fileInfo := c.StatRequest(bucket, key)
-	return fileInfo, req.Send()
-}
-
-// StatRequest 返回request.Request指针， 用于发起stat接口请求
-func (c *Kodo) StatRequest(bucket, key string) (req *request.Request, info *FileInfo) {
-	op := qiniu.NewAPI("POST", fmt.Sprintf("/stat/%s", qiniu.EncodedEntry(bucket, key)), c.Config.RsHost,
-		"http", http.CONTENT_TYPE_JSON, credentials.TokenQBox, "stat", ServiceName)
-	info = &FileInfo{}
-	req = c.newRequest(op, nil, info)
-	return
 }
