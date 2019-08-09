@@ -1,7 +1,13 @@
 // Package qiniu 默认会从qiniu.Config, 环境变量， 配置文件获取配置信息，优先级从高到低
-// 配置文件是ini格式的文件， 当前可以配置的有两个section, 分别是
-// `profile`和`host`, `profile`提供了账户的信息，比如密钥信息
-// `host` 提供了各个接口HOST配置
+// 配置文件是ini格式的文件， 当前可以配置的section有:
+// [profile], [host], [z0], [z1], [z2], [na0], [as0]
+// [profile]提供了账户的信息，比如密钥信息
+// [host] 提供了各个接口全局的HOST配置
+// [z0], [z1], [z2], [na0], [as0] 是关于存储各个区域的HOST配置
+// 可以配置的信息有UpHosts(可用的上传域名列表), CdnUpHosts（可用的加速上传域名列表),
+// 各个区域对应的RsHost, RsfHost, ApiHost, IoHost（存储下载入口)
+//
+// 如果在配置文件中，同时配置了全局的Host和区域Host, 那么会使用区域的配置
 //
 //该文件的格式如下:
 //
@@ -14,12 +20,21 @@
 // QINIU_RSF_HOST = ""
 // QINIU_UC_HOST = ""
 // QINIU_API_HOST = ""
+//
+// [z0]
+// UpHosts = "domain1,domain2"
+// CdnUpHosts = "domain1,domain2"
+// RsHost = "",
+// RsfHost = "",
+// ApiHost = "",
+// IoHost = "",
 package qiniu
 
 import (
 	"net/http"
 
 	"github.com/qiniu/go-sdk/qiniu/credentials"
+	"github.com/qiniu/go-sdk/qiniu/definitions"
 )
 
 // UseServiceDefaultRetries instructs the config to use the service's own
@@ -27,14 +42,28 @@ import (
 // Config.MaxRetries is nil also.
 const UseServiceDefaultRetries = -1
 
-// 七牛接口默认的域名
 const (
-	DefaultRsHost  = "rs.qiniu.com"
+	KB = 1024
+	MB = 1024 * KB
+	GB = 1024 * MB
+	PB = 1024 * GB
+)
+
+const (
+	// 默认的RsHost
+	DefaultRsHost = "rs.qiniu.com"
+
+	// 默认的RsfHost
 	DefaultRsfHost = "rsf.qiniu.com"
+
+	// 默认的APIHost
 	DefaultAPIHost = "api.qiniu.com"
 
 	// 查询存储空间相关域名
 	DefaultUcHost = "uc.qbox.me"
+
+	// 默认的最大的可以使用表单方式上传的文件大小
+	DefaultFormSize = 1 * MB
 )
 
 // RequestRetryer is an alias for a type that implements the request.Retryer
@@ -122,7 +151,7 @@ type Config struct {
 	// RsHost： rs.qiniu.com
 	// RsfHost: rsf.qiniu.com
 	// ApiHost: api.qiniu.com
-	// 七牛RsHost
+	// 全局的Host配置
 	RsHost string
 
 	// 七牛RsfHost
@@ -132,6 +161,35 @@ type Config struct {
 	ApiHost string
 
 	UcHost string
+
+	// 存储空间所在的区域的名字
+	// 支持的区域名字：
+	// [`z0`, `z1`, `z2`, `na0`, `as0`]
+	// 分别代表`华东`, `华北`, `华南`, `北美`, `东南亚`
+	// 如果Region的值不在上面的列表中，那么SDK会忽略该值
+	//
+	// 如果后续的接口使用的都是一个区域的存储空间，可以设置该值。
+	// 比如要操作或者请求服务的存储空间属于不同的存储空间，可以
+	// 在具体的接口输入中设置region值，可以覆盖这个地方的配置
+	Region string
+
+	// 各个区域的HOSTS， 如果全局配置和各个区域的HOST配置都存在
+	// 那么会使用各个存储区域的HOST配置
+
+	// 华东
+	RegionHD definitions.Host
+
+	// 华南
+	RegionHN definitions.Host
+
+	// 华北
+	RegionHB definitions.Host
+
+	// 东南亚
+	RegionAsia definitions.Host
+
+	// 北美
+	RegionNA definitions.Host
 }
 
 // NewConfig returns a new Config pointer that can be chained with builder

@@ -2,9 +2,11 @@ package session
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/qiniu/go-sdk/internal/ini"
 	"github.com/qiniu/go-sdk/qiniu/credentials"
+	"github.com/qiniu/go-sdk/qiniu/definitions"
 	"github.com/qiniu/go-sdk/qiniu/qerr"
 )
 
@@ -24,6 +26,15 @@ const (
 	DefaultSharedConfigProfile = `default`
 )
 
+var zoneKeys = map[string]string{
+	"rs":  "qiniu_rs_host",
+	"rsf": "qiniu_rsf_host",
+	"api": "qiniu_api_host",
+	"io":  "qiniu_io_host",
+	"up":  "qiniu_up_hosts",
+	"acc": "qiniu_acc_up_hosts",
+}
+
 // sharedConfig represents the configuration fields of the SDK config files.
 type sharedConfig struct {
 	// Credentials values from the config file. Both qiniu_access_key_id
@@ -39,6 +50,12 @@ type sharedConfig struct {
 	RsfHost string
 	ApiHost string
 	UcHost  string
+
+	Z0  definitions.Host
+	Z1  definitions.Host
+	Z2  definitions.Host
+	Na0 definitions.Host
+	As0 definitions.Host
 }
 
 var defaultSections = []string{"profile", "host"}
@@ -138,13 +155,39 @@ func (cfg *sharedConfig) setFromIniFile(profile string, file sharedConfigFile) e
 		return SharedConfigProfileNotExistsError{Profile: profile, Err: nil}
 	}
 	switch profile {
+	case "z0":
+		h := zoneHostFromSection(section)
+		cfg.Z0 = *h
+	case "z1":
+		h := zoneHostFromSection(section)
+		cfg.Z1 = *h
+	case "z2":
+		h := zoneHostFromSection(section)
+		cfg.Z2 = *h
+	case "na0":
+		h := zoneHostFromSection(section)
+		cfg.Na0 = *h
+	case "as0":
+		h := zoneHostFromSection(section)
+		cfg.As0 = *h
 	case "host":
 		cfg.hostsFromSection(section)
 	default:
 		cfg.credsFromSection(section, file.Filename)
 	}
-
 	return nil
+}
+
+func zoneHostFromSection(section ini.Section) *definitions.Host {
+	h := definitions.Host{}
+	h.RsHost = section.String(zoneKeys["rs"])
+	h.RsfHost = section.String(zoneKeys["rsf"])
+	h.IoHost = section.String(zoneKeys["io"])
+	h.ApiHost = section.String(zoneKeys["api"])
+	h.UpHosts = strings.Split(section.String(zoneKeys["up"]), ",")
+	h.AccUpHosts = strings.Split(section.String(zoneKeys["acc"]), ",")
+
+	return &h
 }
 
 // hostsFromSection 从ini.Section中获取hosts信息

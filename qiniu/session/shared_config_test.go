@@ -9,6 +9,7 @@ import (
 
 	"github.com/qiniu/go-sdk/internal/ini"
 	"github.com/qiniu/go-sdk/qiniu/credentials"
+	"github.com/qiniu/go-sdk/qiniu/definitions"
 )
 
 var (
@@ -31,6 +32,20 @@ func TestLoadSharedConfig(t *testing.T) {
 					AccessKey:    "qiniu_access_key_id",
 					SecretKey:    []byte("qiniu_secret_access_key"),
 					ProviderName: fmt.Sprintf("SharedConfigCredentials: %s", testConfigFilename),
+				},
+			},
+		},
+		{
+			Filenames: []string{testConfigFilename},
+			Profile:   "z0",
+			Expected: sharedConfig{
+				Z0: definitions.Host{
+					RsHost:     "rs",
+					RsfHost:    "rsf",
+					IoHost:     "io",
+					ApiHost:    "api",
+					UpHosts:    []string{"domain1", "domain2"},
+					AccUpHosts: []string{"domain1", "domain2"},
 				},
 			},
 		},

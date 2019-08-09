@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"sync"
 
-	qhttp "github.com/qiniu/go-sdk/qiniu/http"
+	"github.com/qiniu/go-sdk/qiniu/definitions"
 )
 
 // AnonymousCredentials is an empty Credential object that can be used as
@@ -225,12 +225,12 @@ func (v *Value) SignRequestV2(req *http.Request) (token string, err error) {
 
 // 管理凭证生成时，是否同时对request body进行签名
 func incBody(req *http.Request) bool {
-	return req.Body != nil && req.Body != http.NoBody && req.Header.Get("Content-Type") == qhttp.CONTENT_TYPE_FORM
+	return req.Body != nil && req.Body != http.NoBody && req.Header.Get("Content-Type") == definitions.CONTENT_TYPE_FORM
 }
 
 func incBodyV2(req *http.Request) bool {
 	contentType := req.Header.Get("Content-Type")
-	return req.Body != nil && req.Body != http.NoBody && (contentType == qhttp.CONTENT_TYPE_FORM || contentType == qhttp.CONTENT_TYPE_JSON)
+	return req.Body != nil && req.Body != http.NoBody && (contentType == definitions.CONTENT_TYPE_FORM || contentType == definitions.CONTENT_TYPE_JSON)
 }
 
 // VerifyCallback 验证上传回调请求是否来自七牛

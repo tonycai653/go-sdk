@@ -70,3 +70,11 @@ qiniu_rs_host = "qiniu_rs_host"
 qiniu_rsf_host = "qiniu_rsf_host"
 qiniu_uc_host = "qiniu_uc_host"
 qiniu_api_host = "qiniu_api_host"
+
+[z0]
+qiniu_up_hosts = "domain1,domain2"
+qiniu_acc_up_hosts = "domain1,domain2"
+qiniu_rs_host = "rs"
+qiniu_rsf_host = "rsf"
+qiniu_api_host = "api"
+qiniu_io_host = "io"

@@ -111,6 +111,7 @@ var BodyHandler = request.NamedHandler{
 					return
 				}
 				r.SetStringBody(v.Encode())
+			case "multipart/form-data": // 主要是表单上传
 			default: // application/octet-stream, etc
 				if reader, ok := r.Params.(io.ReadSeeker); ok {
 					r.SetReaderBody(reader)
