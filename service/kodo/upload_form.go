@@ -3,6 +3,7 @@ package kodo
 import (
 	"bytes"
 	"fmt"
+	"hash"
 	"hash/crc32"
 	"io"
 	"io/ioutil"
@@ -223,10 +224,10 @@ func (input *FormInput) getUpHost() (host, scheme string, err error) {
 // 服务端返回的数据会有其他的字段， 需要调用者定义相应的结构体.
 type DefaultFormOutput struct {
 	// 上传文件的hash值
-	Hash string
+	Hash string `json:"hash,omitempty"`
 
 	// 上传文件保存在存储中的文件名
-	Key string
+	Key string `json:"key,omitempty"`
 }
 
 // UploadForm 使用表单上传的方式上传数据到七牛存储空间
@@ -269,8 +270,9 @@ func (u *Kodo) UploadFormRequest(input *FormInput, out interface{}) (req *reques
 
 	var data io.Reader
 
+	var h hash.Hash32
 	if input.WithCrc32 {
-		h := crc32.NewIEEE()
+		h = crc32.NewIEEE()
 		data = io.TeeReader(input.Data, h)
 	} else {
 		data = input.Data
@@ -314,6 +316,13 @@ func (u *Kodo) UploadFormRequest(input *FormInput, out interface{}) (req *reques
 	if e := writer.writeFormFileField("file", input.getOrigFilename(), input.MimeType, data); e != nil {
 		err = qerr.New(ErrWriteField, "failed to write form `file` field", e)
 		return
+	}
+	// after writeFormFileField to make sure that file data read to hash
+	if input.WithCrc32 {
+		if e := writer.WriteField("crc32", fmt.Sprintf("%010d", h.Sum32())); e != nil {
+			err = qerr.New(ErrWriteField, "failed to write form `crc32` field", e)
+			return
+		}
 	}
 	if e := writer.Close(); e != nil {
 		err = qerr.New(ErrWriteField, "failed to close multipart writer", e)

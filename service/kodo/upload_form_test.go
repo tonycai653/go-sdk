@@ -82,4 +82,20 @@ func TestUploadForm(t *testing.T) {
 		}
 		t.Log(out)
 	})
+	t.Run("upload reader with crc32", func(t *testing.T) {
+		out := &kodo.DefaultFormOutput{}
+		input := &kodo.FormInput{
+			BucketName: testBucket,
+			Key:        "upload_form.txt",
+			Region:     "z0",
+			Data:       strings.NewReader("hello world"),
+			WithCrc32:  true,
+		}
+
+		err := kclient.UploadForm(input, &out)
+		if err != nil {
+			t.Fatalf("Expected nil error, but got: %#v\n", err)
+		}
+		t.Log(out)
+	})
 }
