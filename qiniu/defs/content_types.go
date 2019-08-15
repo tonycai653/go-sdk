@@ -1,4 +1,4 @@
-package definitions
+package defs
 
 const (
 	// 接口请求和返回常用的HTTP ContentType类型

@@ -1,9 +1,7 @@
 package kodo
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
@@ -13,8 +11,9 @@ import (
 
 // PutPolicy 是七牛上传到存储空间的策略配置，可以配置诸如是否允许覆盖上传，
 // 上传回调的地址， 上传返回内容的格式，允许上传的文件类型等等。
-
 // 上传策略的详细文档： https://developer.qiniu.com/kodo/manual/1206/put-policy
+//
+// 推荐使用PutPolicy提供的方法设置字段， 会提供一些检查
 type PutPolicy struct {
 	Scope string `json:"scope"`
 
@@ -65,8 +64,8 @@ func NewPolicy() *PutPolicy {
 // bucket 是存储空间的名字，不能为空
 // key 是资源名称， 该字段的含义是变化的， 可以表示文件名， 文件前缀；
 // 如果上传策略设置了IsPrefixalScope, 那么key表示文件前缀
-
-// scope字段的含义:
+//
+// scope 字段的含义:
 // 指定上传的目标资源空间 Bucket 和资源键 Key（最大为 750 字节）。有三种格式：
 //
 // <bucket>，表示允许用户上传文件到指定的 bucket。
@@ -107,7 +106,7 @@ func (p *PutPolicy) WithIsPrefixalScope(isPrefixalScope bool) *PutPolicy {
 // 该截止时间为上传完成后，在七牛空间生成文件的校验时间，而非上传的开始时间。
 // 一般建议设置为上传开始时间 +3600s，用户可根据具体的业务场景对凭证截止时间进行调整。
 func (p *PutPolicy) WithDeadline(deadline time.Time) *PutPolicy {
-	p.Deadline = deadline.Unix()
+	p.Deadline = uint32(deadline.Unix())
 
 	return p
 }
@@ -119,7 +118,7 @@ func (p *PutPolicy) WithDeadline(deadline time.Time) *PutPolicy {
 // p := &PutPolicy{}
 // p.WithDeadlineAfter(time.Date(2019, 8, 20, 0, 0, 0, 0, nil), 2 * time.Hour)
 func (p *PutPolicy) WithDeadlineAfter(current time.Time, d time.Duration) *PutPolicy {
-	p.Deadline = current.Add(d).Unix()
+	p.Deadline = uint32(current.Add(d).Unix())
 	return p
 }
 
@@ -130,8 +129,7 @@ func (p *PutPolicy) WithDeadlineAfter(current time.Time, d time.Duration) *PutPo
 // p := &PutPolicy{}
 // p.WithDeadlineAfterNow(1 * time.Hour)
 func (p *PutPolicy) WithDeadlineAfterNow(d time.Duration) *PutPolicy {
-	p.Deadline = p.WithDeadlineAfter(time.Now(), d)
-	return p
+	return p.WithDeadlineAfter(time.Now(), d)
 }
 
 // WithInsertOnly 设置InsertOnly字段
@@ -155,13 +153,13 @@ func (p *PutPolicy) WithEndUser(endUser string) *PutPolicy {
 	return p
 }
 
-// WithReturnUrl 设置p.ReturnURL字段
+// WithReturnURL 设置p.ReturnURL字段
 //
 // Web 端文件上传成功后，浏览器执行 303 跳转的 URL。
 // 通常用于表单上传, 文件上传成功后会跳转到 <returnUrl>?upload_ret=<queryString>，
 // <queryString>包含 returnBody 内容。如不设置 returnUrl，则直接将 returnBody 的内容返回给客户端。
-func (p *PutPolicy) WithReturnUrl(returnUrl string) *PutPolicy {
-	p.ReturnURL = returnUrl
+func (p *PutPolicy) WithReturnURL(returnURL string) *PutPolicy {
+	p.ReturnURL = returnURL
 	return p
 }
 
@@ -176,7 +174,7 @@ func (p *PutPolicy) WithReturnBody(returnBody string) *PutPolicy {
 	return p
 }
 
-// WithCallbackUrl 设置p.CallbackURL上传回调地址
+// WithCallbackURL 设置p.CallbackURL上传回调地址
 //
 // 上传成功后，七牛云向业务服务器发送 POST 请求的 URL。
 // 该URL必须是公网上可以正常进行 POST 请求并能响应 HTTP/1.1 200 OK 的有效 URL。
@@ -188,7 +186,7 @@ func (p *PutPolicy) WithReturnBody(returnBody string) *PutPolicy {
 // 一个典型例子是：http://<ip1>/callback;http://<ip2>/callback，并同时指定下面的 callbackHost 字段。
 // 在 callbackUrl 中使用 ip 的好处是减少对 dns 解析的依赖，可改善回调的性能和稳定性。
 // 指定 callbackUrl，必须指定 callbackbody，且值不能为空。
-func (p *PutPolicy) WithCallbackUrl(callbackUrls []string) *PutPolicy {
+func (p *PutPolicy) WithCallbackURL(callbackUrls []string) *PutPolicy {
 	p.CallbackURL = strings.Join(callbackUrls, ";")
 	return p
 }
@@ -237,14 +235,14 @@ func (p *PutPolicy) WithPersistentOps(ops string) *PutPolicy {
 	return p
 }
 
-// WithPersistentNotifyUrl 设置p.PersistentNotifyURL字段
+// WithPersistentNotifyURL 设置p.PersistentNotifyURL字段
 //
 // 接收持久化处理结果通知的 URL。
 // 必须是公网上可以正常进行 POST 请求并能响应 HTTP/1.1 200 OK 的有效 URL。
 // 该 URL 获取的内容和持久化处理状态查询的处理结果一致。
 // 发送 body 格式是 Content-Type 为 application/json 的 POST 请求，需要按照读取流的形式读取请求的 body 才能获取。
-func (p *PutPolicy) WithPersistentNotifyUrl(notifyUrl string) *PutPolicy {
-	p.PersistentNotifyURL = notifyUrl
+func (p *PutPolicy) WithPersistentNotifyURL(notifyURL string) *PutPolicy {
+	p.PersistentNotifyURL = notifyURL
 	return p
 }
 
@@ -253,7 +251,7 @@ func (p *PutPolicy) WithPersistentNotifyUrl(notifyUrl string) *PutPolicy {
 // 转码队列名。资源上传成功后，触发转码时指定独立的队列进行转码。
 // 为空则表示使用公用队列，处理速度比较慢。建议使用专用队列
 func (p *PutPolicy) WithPersitentPipeline(pipeline string) *PutPolicy {
-	p.pipeline = pipeline
+	p.PersistentPipeline = pipeline
 	return p
 }
 
@@ -311,7 +309,7 @@ func (p *PutPolicy) WithDetectMime(detectMime bool) *PutPolicy {
 	return p
 }
 
-// WithMimeLimit设置p.MimeLimit字段
+// WithMimeLimit 设置p.MimeLimit字段
 //
 // 限定用户上传的文件类型, 指定本字段值，七牛服务器会侦测文件内容以判断 MimeType，
 // 再用判断值跟指定值进行匹配，匹配成功则允许上传，匹配失败则返回 403 状态码。示例：
@@ -333,8 +331,8 @@ func (p *PutPolicy) WithFileType(fileType int) *PutPolicy {
 
 // UploadToken 通过上传策略生成上传凭证
 // 上传策略的详细文档： https://developer.qiniu.com/kodo/manual/1206/put-policy
-
-// Expires字段对应于上传策略中的`deadline`字段，表示上传token过期的时间。
+//
+// Expires 字段对应于上传策略中的`deadline`字段，表示上传token过期的时间。
 func (p *PutPolicy) UploadToken(cred *credentials.Credentials) (token string, err error) {
 	v, gerr := cred.Get()
 	if gerr != nil {

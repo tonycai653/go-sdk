@@ -26,7 +26,7 @@ type Session struct {
 	Handlers request.Handlers
 }
 
-// NewSession returns a new Session created from SDK defaults, config files,
+// New returns a new Session created from SDK defaults, config files,
 // environment, and user provided config files. Once the Session is created
 // it can be mutated to modify the Config or Handlers. The Session is safe to
 // be read concurrently, but it should not be written to concurrently.
@@ -182,7 +182,7 @@ func mergeHostConfig(userCfg, defaultCfg *qiniu.Config, envCfg envConfig, shared
 	defaultCfg.RsHost = mergeValue([]string{userCfg.RsHost, envCfg.RsHost, sharedCfg.RsHost, defaultCfg.RsHost})
 	defaultCfg.RsfHost = mergeValue([]string{userCfg.RsfHost, envCfg.RsfHost, sharedCfg.RsfHost, defaultCfg.RsfHost})
 	defaultCfg.UcHost = mergeValue([]string{userCfg.UcHost, envCfg.UcHost, sharedCfg.UcHost, defaultCfg.UcHost})
-	defaultCfg.ApiHost = mergeValue([]string{userCfg.ApiHost, envCfg.ApiHost, sharedCfg.ApiHost, defaultCfg.ApiHost})
+	defaultCfg.APIHost = mergeValue([]string{userCfg.APIHost, envCfg.APIHost, sharedCfg.APIHost, defaultCfg.APIHost})
 }
 
 func mergeValue(vs []string) string {

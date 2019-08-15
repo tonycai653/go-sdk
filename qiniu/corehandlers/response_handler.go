@@ -18,7 +18,7 @@ var UnmarshalHandler = request.NamedHandler{
 			case "application/json":
 				err := json.NewDecoder(r.HTTPResponse.Body).Decode(r.Data)
 				if err != nil {
-					r.Error = qerr.New(request.ErrCodeDeserialization, "failed to decode data with content-type: "+contentType, err)
+					r.Error = qerr.New(qerr.ErrCodeDeserialization, "failed to decode data with content-type: "+contentType, err)
 					return
 				}
 			}

@@ -9,23 +9,23 @@ import (
 
 func TestBytesFromRequest(t *testing.T) {
 	// 只有content-length和body大小对测试有影响
-	// http method, url不用设置
+	// http method, URL不用设置
 	reqPrams := []ReqParams{
 		{
 			Method:  "",
-			Url:     "",
+			URL:     "",
 			Headers: http.Header{"Content-Length": []string{"0"}},
 			Body:    strings.NewReader(""),
 		},
 		{
 			Method:  "",
-			Url:     "",
+			URL:     "",
 			Headers: http.Header{"Content-Length": []string{"-1"}},
 			Body:    strings.NewReader("h"),
 		},
 		{
 			Method:  "",
-			Url:     "",
+			URL:     "",
 			Headers: http.Header{"Content-Length": []string{"5"}},
 			Body:    strings.NewReader("testt"),
 		},
@@ -60,10 +60,6 @@ func TestBytesFromRequest(t *testing.T) {
 			t.Errorf("Expected: %s, Got: %s", v.Expected, string(bs))
 		}
 	}
-}
-
-func TestValueVerifyCallback(t *testing.T) {
-
 }
 
 func TestValueEmpty(t *testing.T) {
@@ -158,13 +154,13 @@ func TestCredentials(t *testing.T) {
 	})
 	t.Run("credentials sign request", func(t *testing.T) {
 		inputs := []ReqParams{
-			{Method: "", Url: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "", Url: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "GET", Url: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "POST", Url: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "", Url: "http://upload.qiniup.com", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/x-www-form-urlencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
+			{Method: "", URL: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "", URL: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "GET", URL: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "POST", URL: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "", URL: "http://upload.qiniup.com", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "", URL: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "", URL: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/x-www-form-URLencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
 		}
 		wants := []string{
 			"ak:qfWnqF1E_vfzjZnReCVkcSMl29M=",
@@ -192,13 +188,13 @@ func TestCredentials(t *testing.T) {
 
 	t.Run("credentials sign request v2", func(t *testing.T) {
 		inputs := []ReqParams{
-			{Method: "", Url: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "", Url: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "GET", Url: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "POST", Url: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "", Url: "http://upload.qiniup.com", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-			{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/x-www-form-urlencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
+			{Method: "", URL: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "", URL: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "GET", URL: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "POST", URL: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "", URL: "http://upload.qiniup.com", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "", URL: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+			{Method: "", URL: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/x-www-form-URLencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
 		}
 		wants := []string{
 			"ak:XNay-AIghhXfytRKsKNj0DQqV2E=",
@@ -227,15 +223,15 @@ func TestCredentials(t *testing.T) {
 
 func TestCollectData(t *testing.T) {
 	inputs := []ReqParams{
-		{Method: "", Url: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "", Url: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "GET", Url: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "POST", Url: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "", Url: "http://upload.qiniup.com", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/x-www-form-urlencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
-		{Method: "", Url: "http://upload.qiniup.com?v=2", Headers: http.Header{"Content-Type": []string{"application/x-www-form-urlencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
-		{Method: "", Url: "http://upload.qiniup.com/find/sdk?v=2", Headers: http.Header{"Content-Type": []string{"application/x-www-form-urlencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
+		{Method: "", URL: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", URL: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "GET", URL: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "POST", URL: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", URL: "http://upload.qiniup.com", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", URL: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", URL: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/x-www-form-URLencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
+		{Method: "", URL: "http://upload.qiniup.com?v=2", Headers: http.Header{"Content-Type": []string{"application/x-www-form-URLencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
+		{Method: "", URL: "http://upload.qiniup.com/find/sdk?v=2", Headers: http.Header{"Content-Type": []string{"application/x-www-form-URLencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
 	}
 	wants := []string{"\n", "\n", "\n", "\n", "\n", "\n", "\nname=test&language=go", "?v=2\nname=test&language=go", "/find/sdk?v=2\nname=test&language=go"}
 	reqs, gErr := genRequests(inputs)
@@ -257,16 +253,16 @@ func TestCollectData(t *testing.T) {
 
 func TestCollectDataV2(t *testing.T) {
 	inputs := []ReqParams{
-		{Method: "", Url: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "", Url: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "", Url: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "GET", Url: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "POST", Url: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "", Url: "http://upload.qiniup.com", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
-		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/x-www-form-urlencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
-		{Method: "", Url: "http://upload.qiniup.com?v=2", Headers: http.Header{"Content-Type": []string{"application/x-www-form-urlencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
-		{Method: "", Url: "http://upload.qiniup.com/find/sdk?v=2", Headers: http.Header{"Content-Type": []string{"application/x-www-form-urlencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
+		{Method: "", URL: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", URL: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", URL: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "GET", URL: "", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "POST", URL: "", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", URL: "http://upload.qiniup.com", Headers: nil, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", URL: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", URL: "http://upload.qiniup.com", Headers: http.Header{"Content-Type": []string{"application/x-www-form-URLencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
+		{Method: "", URL: "http://upload.qiniup.com?v=2", Headers: http.Header{"Content-Type": []string{"application/x-www-form-URLencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
+		{Method: "", URL: "http://upload.qiniup.com/find/sdk?v=2", Headers: http.Header{"Content-Type": []string{"application/x-www-form-URLencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
 	}
 
 	wants := []string{
@@ -277,9 +273,9 @@ func TestCollectDataV2(t *testing.T) {
 		"POST \nHost: \nContent-Type: application/json\n\n{\"name\": \"test\"}",
 		"GET \nHost: upload.qiniup.com\n\n",
 		"GET \nHost: upload.qiniup.com\nContent-Type: application/json\n\n{\"name\": \"test\"}",
-		"GET \nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\n\nname=test&language=go",
-		"GET ?v=2\nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\n\nname=test&language=go",
-		"GET /find/sdk?v=2\nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\n\nname=test&language=go",
+		"GET \nHost: upload.qiniup.com\nContent-Type: application/x-www-form-URLencoded\n\nname=test&language=go",
+		"GET ?v=2\nHost: upload.qiniup.com\nContent-Type: application/x-www-form-URLencoded\n\nname=test&language=go",
+		"GET /find/sdk?v=2\nHost: upload.qiniup.com\nContent-Type: application/x-www-form-URLencoded\n\nname=test&language=go",
 	}
 	reqs, gErr := genRequests(inputs)
 	if gErr != nil {
@@ -297,8 +293,8 @@ func TestCollectDataV2(t *testing.T) {
 	}
 }
 
-func genRequest(method, url string, headers http.Header, body io.Reader) (req *http.Request, err error) {
-	req, err = http.NewRequest(method, url, body)
+func genRequest(method, URL string, headers http.Header, body io.Reader) (req *http.Request, err error) {
+	req, err = http.NewRequest(method, URL, body)
 	if err != nil {
 		return
 	}
@@ -308,14 +304,14 @@ func genRequest(method, url string, headers http.Header, body io.Reader) (req *h
 
 type ReqParams struct {
 	Method  string
-	Url     string
+	URL     string
 	Headers http.Header
 	Body    io.Reader
 }
 
 func genRequests(params []ReqParams) (reqs []*http.Request, err error) {
 	for _, reqParam := range params {
-		req, rErr := genRequest(reqParam.Method, reqParam.Url, reqParam.Headers, reqParam.Body)
+		req, rErr := genRequest(reqParam.Method, reqParam.URL, reqParam.Headers, reqParam.Body)
 		if rErr != nil {
 			err = rErr
 			return

@@ -21,10 +21,6 @@ const (
 	// during protocol marshaling.
 	ErrCodeSerialization = "SerializationError"
 
-	// ErrCodeDeserialization is the deserialization error code that is received
-	// during protocol unmarshaling.
-	ErrCodeDeserialization = "DeserializationError"
-
 	// ErrCodeRead is an error that is returned during HTTP reads.
 	ErrCodeRead = "ReadError"
 

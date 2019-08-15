@@ -1,4 +1,4 @@
-// Package auth provides credential retrieval and management
+// Package credentials provides credential retrieval and management
 //
 // The Credentials is the primary method of getting access to and managing
 // credentials Values. Using dependency injection retrieval of the credential
@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/qiniu/go-sdk/qiniu/definitions"
+	"github.com/qiniu/go-sdk/qiniu/defs"
 )
 
 // AnonymousCredentials is an empty Credential object that can be used as
@@ -97,32 +97,25 @@ func NewCredentials(provider Provider) *Credentials {
 	return cred
 }
 
-// Get returns the credentials value, or error if the credentials Value failed
-// to be retrieved.
-//
-// Will return the cached credentials Value if the cache has cached not empty Value. If the
-// credentials Value is not cached or the cached value is empty, the Provider's Retrieve() will be called
-// to refresh the credentials.
+// Get 返回Value类型， 如果获取密钥的过程发生了错误，返回相应的错误信息
+// 如果缓存的Value非空， 那么返回缓存的Value值, 否则调用c.provider.Retrieve重新获取密钥信息
 func (c *Credentials) Get() (Value, error) {
 	// Check the cached credentials first with just the read lock.
 	c.m.RLock()
 	defer c.m.RUnlock()
 
 	if !c.Value.IsEmpty() {
-		creds := c.Value
-		c.m.RUnlock()
-		return creds, nil
-	} else {
-		creds, err := c.provider.Retrieve()
-		if err != nil {
-			return Value{}, err
-		}
-		c.Value = creds
+		return c.Value, nil
 	}
+	creds, err := c.provider.Retrieve()
+	if err != nil {
+		return Value{}, err
+	}
+	c.Value = creds
 	return c.Value, nil
 }
 
-// 构建一个Credentials对象指针
+// New 构建一个Credentials对象指针
 func New(accessKey, secretKey string) *Credentials {
 	cred := NewStaticCredentials(accessKey, secretKey)
 	return cred
@@ -225,12 +218,12 @@ func (v *Value) SignRequestV2(req *http.Request) (token string, err error) {
 
 // 管理凭证生成时，是否同时对request body进行签名
 func incBody(req *http.Request) bool {
-	return req.Body != nil && req.Body != http.NoBody && req.Header.Get("Content-Type") == definitions.CONTENT_TYPE_FORM
+	return req.Body != nil && req.Body != http.NoBody && req.Header.Get("Content-Type") == defs.CONTENT_TYPE_FORM
 }
 
 func incBodyV2(req *http.Request) bool {
 	contentType := req.Header.Get("Content-Type")
-	return req.Body != nil && req.Body != http.NoBody && (contentType == definitions.CONTENT_TYPE_FORM || contentType == definitions.CONTENT_TYPE_JSON)
+	return req.Body != nil && req.Body != http.NoBody && (contentType == defs.CONTENT_TYPE_FORM || contentType == defs.CONTENT_TYPE_JSON)
 }
 
 // VerifyCallback 验证上传回调请求是否来自七牛

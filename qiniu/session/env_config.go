@@ -6,7 +6,6 @@ import (
 
 	"github.com/qiniu/go-sdk/qiniu/credentials"
 	"github.com/qiniu/go-sdk/qiniu/defaults"
-	"github.com/qiniu/go-sdk/qiniu/definitions"
 )
 
 // EnvProviderName provides a name of the provider when config is loaded from environment.
@@ -53,18 +52,20 @@ type envConfig struct {
 	RsfHost string
 
 	// 环境变量: QINIU_API_HOST
-	ApiHost string
+	APIHost string
 
 	// 环境变量: QINIU_UC_HOST
 	UcHost string
 
-	// 各存储区域的host配置
-	// 如果特定区域的host配置和全局的配置同时存在，那么使用特定区域的值
-	Z0  definitions.Host
-	Z1  definitions.Host
-	Z2  definitions.Host
-	Na0 definitions.Host
-	As0 definitions.Host
+	/*
+		// 各存储区域的host配置
+		// 如果特定区域的host配置和全局的配置同时存在，那么使用特定区域的值
+		Z0  defs.Host
+		Z1  defs.Host
+		Z2  defs.Host
+		Na0 defs.Host
+		As0 defs.Host
+	*/
 }
 
 var (
@@ -80,51 +81,53 @@ var (
 	apiHostEnvKey = []string{
 		"QINIU_API_HOST",
 	}
-	z0hostEnvKey = map[string][]string{
-		"rs":  []string{"QINIU_Z0_RS_HOST"},
-		"rsf": []string{"QINIU_Z0_RSF_HOST"},
-		"api": []string{"QINIU_Z0_API_HOST"},
-		"io":  []string{"QINIU_Z0_IO_HOST"},
-		// 多个上传域名之间以逗号分隔
-		"acc": []string{"QINIU_Z0_ACC_UP_HOSTS"},
-		"up":  []string{"QINIU_Z0_UP_HOSTS"},
-	}
-	z1hostEnvKey = map[string][]string{
-		"rs":  []string{"QINIU_Z1_RS_HOST"},
-		"rsf": []string{"QINIU_Z1_RSF_HOST"},
-		"api": []string{"QINIU_Z1_API_HOST"},
-		"io":  []string{"QINIU_Z1_IO_HOST"},
-		// 多个上传域名之间以逗号分隔
-		"acc": []string{"QINIU_Z1_ACC_UP_HOSTS"},
-		"up":  []string{"QINIU_Z1_UP_HOSTS"},
-	}
-	z2hostEnvKey = map[string][]string{
-		"rs":  []string{"QINIU_Z2_RS_HOST"},
-		"rsf": []string{"QINIU_Z2_RSF_HOST"},
-		"api": []string{"QINIU_Z2_API_HOST"},
-		"io":  []string{"QINIU_Z2_IO_HOST"},
-		// 多个上传域名之间以逗号分隔
-		"acc": []string{"QINIU_Z2_ACC_UP_HOSTS"},
-		"up":  []string{"QINIU_Z2_UP_HOSTS"},
-	}
-	na0hostEnvKey = map[string][]string{
-		"rs":  []string{"QINIU_NA0_RS_HOST"},
-		"rsf": []string{"QINIU_NA0_RSF_HOST"},
-		"api": []string{"QINIU_NA0_API_HOST"},
-		"io":  []string{"QINIU_NA0_IO_HOST"},
-		// 多个上传域名之间以逗号分隔
-		"acc": []string{"QINIU_NA0_ACC_UP_HOSTS"},
-		"up":  []string{"QINIU_NA0_UP_HOSTS"},
-	}
-	as0hostEnvKey = map[string][]string{
-		"rs":  []string{"QINIU_AS0_RS_HOST"},
-		"rsf": []string{"QINIU_AS0_RSF_HOST"},
-		"api": []string{"QINIU_AS0_API_HOST"},
-		"io":  []string{"QINIU_AS0_IO_HOST"},
-		// 多个上传域名之间以逗号分隔
-		"acc": []string{"QINIU_AS0_ACC_UP_HOSTS"},
-		"up":  []string{"QINIU_AS0_UP_HOSTS"},
-	}
+	/*
+		z0hostEnvKey = map[string][]string{
+			"rs":  []string{"QINIU_Z0_RS_HOST"},
+			"rsf": []string{"QINIU_Z0_RSF_HOST"},
+			"api": []string{"QINIU_Z0_API_HOST"},
+			"io":  []string{"QINIU_Z0_IO_HOST"},
+			// 多个上传域名之间以逗号分隔
+			"acc": []string{"QINIU_Z0_ACC_UP_HOSTS"},
+			"up":  []string{"QINIU_Z0_UP_HOSTS"},
+		}
+		z1hostEnvKey = map[string][]string{
+			"rs":  []string{"QINIU_Z1_RS_HOST"},
+			"rsf": []string{"QINIU_Z1_RSF_HOST"},
+			"api": []string{"QINIU_Z1_API_HOST"},
+			"io":  []string{"QINIU_Z1_IO_HOST"},
+			// 多个上传域名之间以逗号分隔
+			"acc": []string{"QINIU_Z1_ACC_UP_HOSTS"},
+			"up":  []string{"QINIU_Z1_UP_HOSTS"},
+		}
+		z2hostEnvKey = map[string][]string{
+			"rs":  []string{"QINIU_Z2_RS_HOST"},
+			"rsf": []string{"QINIU_Z2_RSF_HOST"},
+			"api": []string{"QINIU_Z2_API_HOST"},
+			"io":  []string{"QINIU_Z2_IO_HOST"},
+			// 多个上传域名之间以逗号分隔
+			"acc": []string{"QINIU_Z2_ACC_UP_HOSTS"},
+			"up":  []string{"QINIU_Z2_UP_HOSTS"},
+		}
+		na0hostEnvKey = map[string][]string{
+			"rs":  []string{"QINIU_NA0_RS_HOST"},
+			"rsf": []string{"QINIU_NA0_RSF_HOST"},
+			"api": []string{"QINIU_NA0_API_HOST"},
+			"io":  []string{"QINIU_NA0_IO_HOST"},
+			// 多个上传域名之间以逗号分隔
+			"acc": []string{"QINIU_NA0_ACC_UP_HOSTS"},
+			"up":  []string{"QINIU_NA0_UP_HOSTS"},
+		}
+		as0hostEnvKey = map[string][]string{
+			"rs":  []string{"QINIU_AS0_RS_HOST"},
+			"rsf": []string{"QINIU_AS0_RSF_HOST"},
+			"api": []string{"QINIU_AS0_API_HOST"},
+			"io":  []string{"QINIU_AS0_IO_HOST"},
+			// 多个上传域名之间以逗号分隔
+			"acc": []string{"QINIU_AS0_ACC_UP_HOSTS"},
+			"up":  []string{"QINIU_AS0_UP_HOSTS"},
+		}
+	*/
 	credAccessEnvKey = []string{
 		"QINIU_ACCESS_KEY_ID",
 		"QINIU_ACCESS_KEY",
@@ -152,14 +155,16 @@ func loadSharedEnvConfig() envConfig {
 	cfg.Creds.SecretKey = sliceFromEnvVal(credSecretEnvKey)
 	setFromEnvVal(&cfg.RsHost, rsHostEnvKey)
 	setFromEnvVal(&cfg.RsfHost, rsfHostEnvKey)
-	setFromEnvVal(&cfg.ApiHost, apiHostEnvKey)
+	setFromEnvVal(&cfg.APIHost, apiHostEnvKey)
 	setFromEnvVal(&cfg.UcHost, ucHostEnvKey)
 
-	setFromEnvObj(&cfg.Z0, z0hostEnvKey)
-	setFromEnvObj(&cfg.Z1, z1hostEnvKey)
-	setFromEnvObj(&cfg.Z2, z2hostEnvKey)
-	setFromEnvObj(&cfg.Na0, na0hostEnvKey)
-	setFromEnvObj(&cfg.As0, as0hostEnvKey)
+	/*
+		setFromEnvObj(&cfg.Z0, z0hostEnvKey)
+		setFromEnvObj(&cfg.Z1, z1hostEnvKey)
+		setFromEnvObj(&cfg.Z2, z2hostEnvKey)
+		setFromEnvObj(&cfg.Na0, na0hostEnvKey)
+		setFromEnvObj(&cfg.As0, as0hostEnvKey)
+	*/
 
 	// Require logical grouping of credentials
 	if len(cfg.Creds.AccessKey) == 0 || len(cfg.Creds.SecretKey) == 0 {
@@ -210,7 +215,8 @@ func setFromEnvListVal(dst *[]string, keys []string) {
 	}
 }
 
-func setFromEnvObj(dst *definitions.Host, m map[string][]string) {
+/*
+func setFromEnvObj(dst *defs.Host, m map[string][]string) {
 	for ht, ks := range m {
 		switch ht {
 		case "rs":
@@ -218,7 +224,7 @@ func setFromEnvObj(dst *definitions.Host, m map[string][]string) {
 		case "rsf":
 			setFromEnvVal(&dst.RsfHost, ks)
 		case "api":
-			setFromEnvVal(&dst.ApiHost, ks)
+			setFromEnvVal(&dst.APIHost, ks)
 		case "io":
 			setFromEnvVal(&dst.IoHost, ks)
 		case "acc":
@@ -228,3 +234,4 @@ func setFromEnvObj(dst *definitions.Host, m map[string][]string) {
 		}
 	}
 }
+*/

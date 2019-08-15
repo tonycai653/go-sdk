@@ -34,37 +34,12 @@ import (
 	"net/http"
 
 	"github.com/qiniu/go-sdk/qiniu/credentials"
-	"github.com/qiniu/go-sdk/qiniu/definitions"
 )
 
 // UseServiceDefaultRetries instructs the config to use the service's own
 // default number of retries. This will be the default action if
 // Config.MaxRetries is nil also.
 const UseServiceDefaultRetries = -1
-
-const (
-	KB = 1024
-	MB = 1024 * KB
-	GB = 1024 * MB
-	PB = 1024 * GB
-)
-
-const (
-	// 默认的RsHost
-	DefaultRsHost = "rs.qiniu.com"
-
-	// 默认的RsfHost
-	DefaultRsfHost = "rsf.qiniu.com"
-
-	// 默认的APIHost
-	DefaultAPIHost = "api.qiniu.com"
-
-	// 查询存储空间相关域名
-	DefaultUcHost = "uc.qbox.me"
-
-	// 默认的最大的可以使用表单方式上传的文件大小
-	DefaultFormSize = 1 * MB
-)
 
 // RequestRetryer is an alias for a type that implements the request.Retryer
 // interface.
@@ -140,11 +115,12 @@ type Config struct {
 	// services which don't support dual stack endpoints.
 	UseDualStack *bool
 
-	// 指示当dump http response的时候是否输出body
-	// LogDebugBody = true 的时候输出body
-	// 否则不输出body
+	// LogDebugHTTPRequestBody 指示当dump http request的时候是否输出body
+	// LogDebugHTTPRequestBody = true 的时候输出body, 否则不输出body
 	LogDebugHTTPRequestBody bool
 
+	// LogDebugHTTPResponseBody 指示当dump http response的时候是否输出body
+	// LogDebugHTTPResponseBody = true 的时候输出body, 否则不输出body
 	LogDebugHTTPResponseBody bool
 
 	// Host 一般都有默认的配置：
@@ -158,7 +134,7 @@ type Config struct {
 	RsfHost string
 
 	// 七牛API Host
-	ApiHost string
+	APIHost string
 
 	UcHost string
 
@@ -172,24 +148,6 @@ type Config struct {
 	// 比如要操作或者请求服务的存储空间属于不同的存储空间，可以
 	// 在具体的接口输入中设置region值，可以覆盖这个地方的配置
 	Region string
-
-	// 各个区域的HOSTS， 如果全局配置和各个区域的HOST配置都存在
-	// 那么会使用各个存储区域的HOST配置
-
-	// 华东
-	RegionHD definitions.Host
-
-	// 华南
-	RegionHN definitions.Host
-
-	// 华北
-	RegionHB definitions.Host
-
-	// 东南亚
-	RegionAsia definitions.Host
-
-	// 北美
-	RegionNA definitions.Host
 }
 
 // NewConfig returns a new Config pointer that can be chained with builder
@@ -254,14 +212,14 @@ func (c *Config) WithUseDualStack(enable bool) *Config {
 	return c
 }
 
-// WithLogDebugHttpRequestBody 开启输出http 请求body选项
-func (c *Config) WithLogDebugHttpRequestBody(enable bool) *Config {
+// WithLogDebugHTTPRequestBody 开启输出http 请求body选项
+func (c *Config) WithLogDebugHTTPRequestBody(enable bool) *Config {
 	c.LogDebugHTTPRequestBody = enable
 	return c
 }
 
-// WithLogDebugHttpResponseBody开启输出http响应body选项
-func (c *Config) WithLogDebugHttpResponseBody(enable bool) *Config {
+// WithLogDebugHTTPResponseBody 开启输出http响应body选项
+func (c *Config) WithLogDebugHTTPResponseBody(enable bool) *Config {
 	c.LogDebugHTTPResponseBody = enable
 	return c
 }
@@ -280,7 +238,7 @@ func (c *Config) WithRsfHost(host string) *Config {
 
 // WithAPIHost 设置Config.Api字段
 func (c *Config) WithAPIHost(host string) *Config {
-	c.ApiHost = host
+	c.APIHost = host
 	return c
 }
 
@@ -346,8 +304,8 @@ func mergeInConfig(dst *Config, other *Config) {
 	if other.UcHost != "" {
 		dst.UcHost = other.UcHost
 	}
-	if other.ApiHost != "" {
-		dst.ApiHost = other.ApiHost
+	if other.APIHost != "" {
+		dst.APIHost = other.APIHost
 	}
 	dst.LogDebugHTTPRequestBody = other.LogDebugHTTPRequestBody
 	dst.LogDebugHTTPResponseBody = other.LogDebugHTTPResponseBody

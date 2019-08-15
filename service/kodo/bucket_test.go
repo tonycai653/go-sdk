@@ -5,7 +5,7 @@ import (
 )
 
 func TestKodoObjectManagement(t *testing.T) {
-	kclient := newKodoClient(true)
+	kclient := newKodoClient(true, false)
 
 	_, err := kclient.Stat(getTestBucket(), "qiniu.png")
 

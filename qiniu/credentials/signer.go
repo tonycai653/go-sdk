@@ -1,6 +1,6 @@
 package credentials
 
-// 七牛签名算法的类型：
+// TokenType 定义了七牛签名算法的类型：
 // QBoxToken, QiniuToken, BearToken, QiniuMacToken
 type TokenType int
 

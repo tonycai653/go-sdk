@@ -13,6 +13,7 @@ import (
 	"github.com/qiniu/go-sdk/qiniu"
 	"github.com/qiniu/go-sdk/qiniu/corehandlers"
 	"github.com/qiniu/go-sdk/qiniu/credentials"
+	"github.com/qiniu/go-sdk/qiniu/defs"
 	"github.com/qiniu/go-sdk/qiniu/request"
 )
 
@@ -46,10 +47,10 @@ func Config() *qiniu.Config {
 		WithMaxRetries(qiniu.UseServiceDefaultRetries).
 		WithLogger(qiniu.NewDefaultLogger()).
 		WithLogLevel(qiniu.LogOff).
-		WithRsHost(qiniu.DefaultRsHost).
-		WithRsfHost(qiniu.DefaultRsfHost).
-		WithAPIHost(qiniu.DefaultAPIHost).
-		WithUCHost(qiniu.DefaultUcHost)
+		WithRsHost(defs.DefaultRsHost).
+		WithRsfHost(defs.DefaultRsfHost).
+		WithAPIHost(defs.DefaultAPIHost).
+		WithUCHost(defs.DefaultUcHost)
 }
 
 // Handlers returns the default request handlers.

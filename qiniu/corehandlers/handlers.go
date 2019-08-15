@@ -195,7 +195,7 @@ var ValidateResponseHandler = request.NamedHandler{Name: "core.ValidateResponseH
 
 		length, pErr := strconv.ParseInt(contentLength, 10, 64)
 		if pErr != nil {
-			r.Error = qerr.New(qerr.ConvertError, fmt.Sprintf("convert string `%s` to int error", contentLength), pErr)
+			r.Error = qerr.New(qerr.ErrConvertTypes, fmt.Sprintf("convert string `%s` to int error", contentLength), pErr)
 		}
 		if length > 0 {
 			if t := r.HTTPResponse.Header.Get("Content-Type"); t == "application/json" {
@@ -206,7 +206,7 @@ var ValidateResponseHandler = request.NamedHandler{Name: "core.ValidateResponseH
 
 				err := json.NewDecoder(io.TeeReader(r.HTTPResponse.Body, &bf)).Decode(&em)
 				if err != nil {
-					r.Error = qerr.New(qerr.DecodeError, "decode json data error", err)
+					r.Error = qerr.New(qerr.ErrCodeDeserialization, "decode json data error", err)
 				}
 				if err == nil && em.Err != "" {
 					errMsg = em.Err
@@ -222,10 +222,40 @@ var ValidateResponseHandler = request.NamedHandler{Name: "core.ValidateResponseH
 		}
 		// this may be replaced by an UnmarshalError handler
 		switch r.HTTPResponse.StatusCode {
-		case 401:
-			r.Error = qerr.New(qerr.AuthorizationError, errMsg, nil)
+		case 298:
+			r.Error = qerr.New(qerr.ErrPartFailed, errMsg, nil)
 		case 400:
-			r.Error = qerr.New(qerr.ParamsError, errMsg, nil)
+			r.Error = qerr.New(qerr.ErrParams, errMsg, nil)
+		case 401:
+			r.Error = qerr.New(qerr.ErrAuthorization, errMsg, nil)
+		case 403:
+			r.Error = qerr.New(qerr.ErrAccessForbidden, errMsg, nil)
+		case 404:
+			r.Error = qerr.New(qerr.ErrNotFound, errMsg, nil)
+		case 405:
+			r.Error = qerr.New(qerr.ErrUnexpectedRequest, errMsg, nil)
+		case 406:
+			r.Error = qerr.New(qerr.ErrCrc32Verification, errMsg, nil)
+		case 419:
+			r.Error = qerr.New(qerr.ErrAccountFrozen, errMsg, nil)
+		case 478:
+			r.Error = qerr.New(qerr.ErrMirrorSourceRequest, errMsg, nil)
+		case 503:
+			r.Error = qerr.New(qerr.ErrServiceUnavailable, errMsg, nil)
+		case 504:
+			r.Error = qerr.New(qerr.ErrServiceTimeout, errMsg, nil)
+		case 573:
+			r.Error = qerr.New(qerr.ErrRequestRate, errMsg, nil)
+		case 579:
+			r.Error = qerr.New(qerr.ErrUploadCallback, errMsg, nil)
+		case 599:
+			r.Error = qerr.New(qerr.ErrServiceOps, errMsg, nil)
+		case 608:
+			r.Error = qerr.New(qerr.ErrContentChanged, errMsg, nil)
+		case 612:
+			r.Error = qerr.New(qerr.ErrResourceNotExist, errMsg, nil)
+		case 614:
+			r.Error = qerr.New(qerr.ErrResourceExist, errMsg, nil)
 		default:
 			r.Error = qerr.New("UnknownError", errMsg, nil)
 		}

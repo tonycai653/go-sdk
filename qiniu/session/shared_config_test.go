@@ -9,7 +9,7 @@ import (
 
 	"github.com/qiniu/go-sdk/internal/ini"
 	"github.com/qiniu/go-sdk/qiniu/credentials"
-	"github.com/qiniu/go-sdk/qiniu/definitions"
+	"github.com/qiniu/go-sdk/qiniu/defs"
 )
 
 var (
@@ -39,7 +39,7 @@ func TestLoadSharedConfig(t *testing.T) {
 			Filenames: []string{testConfigFilename},
 			Profile:   "z0",
 			Expected: sharedConfig{
-				Z0: definitions.Host{
+				Z0: defs.Host{
 					RsHost:     "rs",
 					RsfHost:    "rsf",
 					IoHost:     "io",
