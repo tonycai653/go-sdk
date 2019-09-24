@@ -1,16 +1,16 @@
 package kodo
 
 import (
-	"strings"
 	"encoding/base64"
 	"encoding/json"
+	"strings"
 
 	"github.com/qiniu/go-sdk/qiniu/qerr"
 )
 
-// DecodeUpToken 解析上传token, 返回accessKey和上传策略中的scope字段
+// DecodeUpToken 解析上传token, 返回accessKey和上传策略指针
 // 如果上传token不合法， 返回相应的错误
-func DecodeUpToken(upToken string) (accessKey, scope string, err error) {
+func DecodeUpToken(upToken string) (accessKey string, putPolicy *PutPolicy, err error) {
 	splits := strings.SplitN(upToken, ":", 3)
 	if len(splits) != 3 {
 		err = qerr.New(ErrInvalidUptoken, "invalid upload token: "+upToken, nil)
@@ -27,6 +27,6 @@ func DecodeUpToken(upToken string) (accessKey, scope string, err error) {
 	if derr != nil {
 		err = derr
 	}
-	scope = p.Scope
+	putPolicy = &p
 	return
 }

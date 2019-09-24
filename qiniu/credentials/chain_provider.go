@@ -61,7 +61,7 @@ func (c *ChainProvider) Retrieve() (Value, error) {
 	var err error
 	err = ErrNoValidProvidersFoundInChain
 	if c.VerboseErrors {
-		err = qerr.NewBatchError("NoCredentialProviders", "no valid providers in chain", errs)
+		err = qerr.NewBatchedError("NoCredentialProviders", "no valid providers in chain", errs)
 	}
 	return Value{}, err
 }

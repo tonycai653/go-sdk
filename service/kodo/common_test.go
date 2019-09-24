@@ -14,19 +14,14 @@ var (
 
 const (
 	defaultTestBucket = "gosdk"
+	defaultTestKey    = "test.txt"
 )
 
-func newKodoClient(cache, debugHTTP bool) *kodo.Kodo {
+func newKodoClient(cache bool, cfg *qiniu.Config) *kodo.Kodo {
 	if cache && kodoClient != nil {
 		return kodoClient
 	}
-	s := session.Must(session.New())
-	if debugHTTP {
-		s.Config.LogDebugHTTPRequestBody = true
-		s.Config.LogDebugHTTPResponseBody = true
-		s.Config.WithLogLevel(qiniu.LogDebugWithHTTPBody)
-	}
-
+	s := session.Must(session.New(cfg))
 	kodoClient = kodo.New(s)
 	return kodoClient
 }
@@ -37,5 +32,14 @@ func getTestBucket() string {
 		return testBucket
 	} else {
 		return defaultTestBucket
+	}
+}
+
+func getTestKey() string {
+	key := os.Getenv("QINIU_TEST_KEY")
+	if key != "" {
+		return key
+	} else {
+		return defaultTestKey
 	}
 }

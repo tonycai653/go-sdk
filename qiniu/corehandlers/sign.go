@@ -25,8 +25,8 @@ var QboxTokenRequestHandler = request.NamedHandler{
 	},
 }
 
-// QboxTokenRequestHandler 给请求加上Authorization 请求头, 使用Qiniu签名方式
-// 不同的接口要求的签名方式不一样， 有个需要Qbox token, 有的需要Qiniu Token
+// QiniuTokenRequestHandler 给请求加上Authorization 请求头, 使用Qiniu签名方式
+// 不同的接口要求的签名方式不一样， 有的需要Qbox token, 有的需要Qiniu Token
 var QiniuTokenRequestHandler = request.NamedHandler{
 	Name: "qiniusdk.auth.QiniuTokenRequestHandler",
 	Fn: func(r *request.Request) {

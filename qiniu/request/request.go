@@ -17,24 +17,20 @@ import (
 )
 
 const (
-	// ErrCodeSerialization is the serialization error code that is received
-	// during protocol marshaling.
+	// ErrCodeSerialization 序列化过程中发生错误
 	ErrCodeSerialization = "SerializationError"
 
-	// ErrCodeRead is an error that is returned during HTTP reads.
+	// ErrCodeRead 读取http数据的时候发生错误
 	ErrCodeRead = "ReadError"
 
-	// ErrCodeResponseTimeout is the connection timeout error that is received
-	// during body reads.
+	// ErrCodeResponseTimeout 读取网络数据响应超时
 	ErrCodeResponseTimeout = "ResponseTimeout"
 
-	// CanceledErrorCode is the error code that will be returned by an
-	// API request that was canceled. Requests given a context.Context may
-	// return this error when canceled.
+	// CanceledErrorCode http请求被取消
 	CanceledErrorCode = "RequestCanceled"
 )
 
-// A Request is the service request to be made.
+// Request 是发送到服务端的请求
 type Request struct {
 	Config   qiniu.Config
 	Handlers Handlers
@@ -48,7 +44,7 @@ type Request struct {
 	HTTPRequest            *http.Request
 	HTTPResponse           *http.Response
 	Body                   io.ReadSeeker
-	BodyStart              int64 // offset from beginning of Body that the request body starts
+	BodyStart              int64 // 读取数据的开始位置
 	Params                 interface{}
 	Error                  error
 	Data                   interface{}
@@ -57,20 +53,12 @@ type Request struct {
 	Retryable              *bool
 	RetryDelay             time.Duration
 	SignedHeaderVals       http.Header
-	LastSignedAt           time.Time
 	DisableFollowRedirects bool
 
-	// A value greater than 0 instructs the request to be signed as Presigned URL
-	// You should not set this field directly. Instead use Request's
-	// Presign or PresignRequest methods.
 	context context.Context
 
 	built bool
 
-	// Need to persist an intermediate body between the input Body and HTTP
-	// request body because the HTTP Client's transport can maintain a reference
-	// to the HTTP request's body after the client has returned. This value is
-	// safe to use concurrently and wrap the input Body for each HTTP request.
 	safeBody *offsetReader
 }
 
@@ -90,19 +78,34 @@ type API struct {
 	APIName string
 }
 
+// Name 返回服务端API的名字
 func (a *API) Name() string {
 	return a.APIName
 }
 
-func (a *API) url() string {
-	var scheme string
+// URL 返回请求的URL地址
+//
+// 如果API的Host带了请求的scheme, 那么使用该sheme
+// 如果HOST没有带scheme, 并且Scheme字段不为空， 那么使用Scheme字段作为scheme
+// 上述两个条件都不满足，则默认使用http作为scheme
+func (a *API) URL() string {
+	var (
+		scheme string
+		host   string
+	)
 
-	if a.Scheme == "" {
-		scheme = "http"
+	if strings.Contains(a.Host, "http://") || strings.Contains(a.Host, "https://") {
+		splits := strings.SplitN(a.Host, "://", 2)
+		scheme = splits[0]
+		host = splits[1]
 	} else {
 		scheme = a.Scheme
+		host = a.Host
 	}
-	host := strings.TrimRight(a.Host, "/")
+	if scheme == "" {
+		scheme = "http"
+	}
+	host = strings.TrimRight(host, "/")
 	path := strings.TrimLeft(a.Path, "/")
 
 	return strings.Join([]string{scheme, "://", host, "/", path}, "")
@@ -127,7 +130,7 @@ func New(cfg qiniu.Config, handlers Handlers, retryer Retryer,
 	httpReq.Header.Set("Content-Type", contentType)
 
 	var err error
-	httpReq.URL, err = url.Parse(operation.url())
+	httpReq.URL, err = url.Parse(operation.URL())
 	if err != nil {
 		httpReq.URL = &url.URL{}
 		err = qerr.New("InvalidEndpointURL", "invalid endpoint uri", err)
@@ -154,14 +157,10 @@ func New(cfg qiniu.Config, handlers Handlers, retryer Retryer,
 	return r
 }
 
-// A Option is a functional option that can augment or modify a request when
-// using a WithContext API operation method.
+// Option 封装了一个函数，用来修改或者设置请求的字段
 type Option func(*Request)
 
-// WithGetResponseHeader builds a request Option which will retrieve a single
-// header value from the HTTP Response. If there are multiple values for the
-// header key use WithGetResponseHeaders instead to access the http.Header
-// map directly. The passed in val pointer must be non-nil.
+// WithGetResponseHeader 构建一个Option, 用来从Response中获取一个请求头的值
 func WithGetResponseHeader(key string, val *string) Option {
 	return func(r *Request) {
 		r.Handlers.Complete.PushBack(func(req *Request) {
@@ -170,9 +169,7 @@ func WithGetResponseHeader(key string, val *string) Option {
 	}
 }
 
-// WithGetResponseHeaders builds a request Option which will retrieve the
-// headers from the HTTP response and assign them to the passed in headers
-// variable. The passed in headers pointer must be non-nil.
+// WithGetResponseHeaders 构建一个请求Option，用来获取所有的请求头
 func WithGetResponseHeaders(headers *http.Header) Option {
 	return func(r *Request) {
 		r.Handlers.Complete.PushBack(func(req *Request) {
@@ -181,24 +178,30 @@ func WithGetResponseHeaders(headers *http.Header) Option {
 	}
 }
 
-// WithLogLevel is a request option that will set the request to use a specific
-// log level when the request is made.
-func WithLogLevel(l qiniu.LogLevelType) Option {
+// WithGetResponseStatusCode 构建一个请求Option, 获取响应状态码
+func WithGetResponseStatusCode(statusCode *int) Option {
 	return func(r *Request) {
-		r.Config.LogLevel = qiniu.LogLevel(l)
+		r.Handlers.Complete.PushBack(func(req *Request) {
+			*statusCode = req.HTTPResponse.StatusCode
+		})
 	}
 }
 
-// ApplyOptions will apply each option to the request calling them in the order
-// the were provided.
+// WithLogLevel 构建一个请求Option, 用来设置请求的日志级别
+func WithLogLevel(l qiniu.LogLevelType) Option {
+	return func(r *Request) {
+		r.Config.LogLevel = l
+	}
+}
+
+// ApplyOptions 会依次应用选项到请求上
 func (r *Request) ApplyOptions(opts ...Option) {
 	for _, opt := range opts {
 		opt(r)
 	}
 }
 
-// Context will always returns a non-nil context. If Request does not have a
-// context context.BackgroundContext will be returned.
+// Context 总是返回非nil的Context, 如果请求没有设置context, 那么返回context.Background context
 func (r *Request) Context() context.Context {
 	if r.context != nil {
 		return r.context
@@ -206,13 +209,7 @@ func (r *Request) Context() context.Context {
 	return context.Background()
 }
 
-// SetContext adds a Context to the current request that can be used to cancel
-// a in-flight request. The Context value must not be nil, or this method will
-// panic.
-//
-// Unlike http.Request.WithContext, SetContext does not return a copy of the
-// Request. It is not safe to use use a single Request value for multiple
-// requests. A new Request should be created for each API operation request.
+// SetContext 设置请求的Context, 用来取消发送中的请求。Context不能为nil, 否则该方法会直接panic
 func (r *Request) SetContext(ctx context.Context) {
 	if ctx == nil {
 		panic("context cannot be nil")
@@ -221,7 +218,7 @@ func (r *Request) SetContext(ctx context.Context) {
 	r.HTTPRequest = r.HTTPRequest.WithContext(ctx)
 }
 
-// WillRetry returns if the request's can be retried.
+// WillRetry 返回请求是否可以重试
 func (r *Request) WillRetry() bool {
 	if !qiniu.IsReaderSeekable(r.Body) && r.HTTPRequest.Body != http.NoBody {
 		return false
@@ -233,39 +230,30 @@ func fmtAttemptCount(retryCount, maxRetries int) string {
 	return fmt.Sprintf("attempt %v/%v", retryCount, maxRetries)
 }
 
-// ParamsFilled returns if the request's parameters have been populated
-// and the parameters are valid. False is returned if no parameters are
-// provided or invalid.
+// ParamsFilled 返回true， 如果r.Params请求参数不为nil, 并且是有效的，否则返回false
 func (r *Request) ParamsFilled() bool {
 	return r.Params != nil && reflect.ValueOf(r.Params).Elem().IsValid()
 }
 
-// DataFilled returns true if the request's data for response deserialization
-// target has been set and is a valid. False is returned if data is not
-// set, or is invalid.
+// DataFilled 返回true, 如果r.Data不为nil, 并且是有效的, 否则返回false
 func (r *Request) DataFilled() bool {
 	return r.Data != nil && reflect.ValueOf(r.Data).Elem().IsValid()
 }
 
-// SetBufferBody will set the request's body bytes that will be sent to
-// the service API.
+// SetBufferBody 使用字节切片设置请求body
 func (r *Request) SetBufferBody(buf []byte) {
 	r.SetReaderBody(bytes.NewReader(buf))
 }
 
-// SetStringBody sets the body of the request to be backed by a string.
+// SetStringBody 使用字符串设置请求body
 func (r *Request) SetStringBody(s string) {
 	r.SetReaderBody(strings.NewReader(s))
 }
 
-// ResetBody rewinds the request body back to its starting position, and
-// sets the HTTP Request body reference. When the body is read prior
-// to being sent in the HTTP request it will need to be rewound.
+// ResetBody 回滚请求的body到开始的位置， 如果请求在被发送之前，
+// body被读取了一部分，发送之前需要回滚body到开始位置
 //
-// ResetBody will automatically be called by the SDK's build handler, but if
-// the request is being used directly ResetBody must be called before the request
-// is Sent.  SetStringBody, SetBufferBody, and SetReaderBody will automatically
-// call ResetBody.
+// 在请求发送到服务端之前， Build Handler会主动调用该方法设置请求body
 func (r *Request) ResetBody() {
 	body, err := r.getNextRequestBody()
 	if err != nil {
@@ -276,7 +264,7 @@ func (r *Request) ResetBody() {
 	r.HTTPRequest.Body = body
 }
 
-// SetReaderBody will set the request's body reader.
+// SetReaderBody 设置请求的body
 func (r *Request) SetReaderBody(reader io.ReadSeeker) {
 	r.Body = reader
 	r.BodyStart, _ = reader.Seek(0, io.SeekCurrent) // Get the Bodies current offset.
@@ -298,16 +286,12 @@ func debugLogReqError(r *Request, stage, retryStr string, err error) {
 		stage, r.ServiceName, r.Api.Name(), retryStr, err))
 }
 
-// Build will build the request's object so it can be signed and sent
-// to the service. Build will also validate all the request's parameters.
-// Any additional build Handlers set on this request will be run
-// in the order they were set.
+// Build 构建请求，然后请求才可以被签名，发送到服务端
+// 构建的过程中会对请求参数进行合法性检查
 //
-// The request will only be built once. Multiple calls to build will have
-// no effect.
+// 请求只可以构建一次， 多次调用Build只有第一次生效
 //
-// If any Validate or Build errors occur the build will stop and the error
-// which occurred will be returned.
+// 如果构建过程中发生了错误，返回错误
 func (r *Request) Build() error {
 	if !r.built {
 		r.Handlers.Validate.Run(r)
@@ -326,10 +310,8 @@ func (r *Request) Build() error {
 	return r.Error
 }
 
-// Sign will sign the request, returning error if errors are encountered.
-//
-// Sign will build the request prior to signing. All Sign Handlers will
-// be executed in the order they were set.
+// Sign 给发出的请求签名，如果遇到错误，直接返回错误信息
+// 在签名之前会对请求进行构建
 func (r *Request) Sign() error {
 	r.Build()
 	if r.Error != nil {
@@ -359,15 +341,7 @@ func (r *Request) getNextRequestBody() (io.ReadCloser, error) {
 	} else if l > 0 {
 		body = r.safeBody
 	} else {
-		// Hack to prevent sending bodies for methods where the body
-		// should be ignored by the server. Sending bodies on these
-		// methods without an associated ContentLength will cause the
-		// request to socket timeout because the server does not handle
-		// Transfer-Encoding: chunked bodies for these methods.
-		//
-		// This would only happen if a api.ReaderSeekerCloser was used with
-		// a io.Reader that was not also an io.Seeker, or did not implement
-		// Len() method.
+		// 阻止Transfer-Encoding: chunked的时候， GET, HEAD, DELETE方法带请求体
 		switch r.HTTPRequest.Method {
 		case "GET", "HEAD", "DELETE":
 			body = http.NoBody
@@ -379,29 +353,16 @@ func (r *Request) getNextRequestBody() (io.ReadCloser, error) {
 	return body, nil
 }
 
-// GetBody will return an io.ReadSeeker of the Request's underlying
-// input body with a concurrency safe wrapper.
+// GetBody 返回一个io.ReadSeeker对象
 func (r *Request) GetBody() io.ReadSeeker {
 	return r.safeBody
 }
 
-// Send will send the request, returning error if errors are encountered.
-//
-// Send will sign the request prior to sending. All Send Handlers will
-// be executed in the order they were set.
-//
-// Canceling a request is non-deterministic. If a request has been canceled,
-// then the transport will choose, randomly, one of the state channels during
-// reads or getting the connection.
-//
-// readLoop() and getConn(req *Request, cm connectMethod)
-// https://github.com/golang/go/blob/master/src/net/http/transport.go
-//
-// Send will not close the request.Request's body.
+// Send 发送请求到服务端， 如果遇到错误就返回错误信息
+// 需求签名的请求会在发送之前进行签名，设置Authorization Header
+// 所有的Handler会按照在Handler链表中的顺序进行调用
 func (r *Request) Send() error {
 	defer func() {
-		// Regardless of success or failure of the request trigger the Complete
-		// request handlers.
 		r.Handlers.Complete.Run(r)
 	}()
 
@@ -442,14 +403,10 @@ func (r *Request) prepareRetry() {
 			r.Api.Name(), r.ServiceName, r.RetryCount))
 	}
 
-	// The previous http.Request will have a reference to the r.Body
-	// and the HTTP Client's Transport may still be reading from
-	// the request's body even though the Client's Do returned.
 	r.HTTPRequest = copyHTTPRequest(r.HTTPRequest, nil)
 	r.ResetBody()
 
-	// Closing response body to ensure that no response body is leaked
-	// between retry attempts.
+	// 关闭response body， 防止重试的时候有网络链接泄漏
 	if r.HTTPResponse != nil && r.HTTPResponse.Body != nil {
 		r.HTTPResponse.Body.Close()
 	}
@@ -488,8 +445,6 @@ func (r *Request) sendRequest() (sendErr error) {
 	return nil
 }
 
-// copy will copy a request which will allow for local manipulation of the
-// request.
 func (r *Request) copy() *Request {
 	req := &Request{}
 	*req = *r
@@ -497,7 +452,7 @@ func (r *Request) copy() *Request {
 	return req
 }
 
-// AddToUserAgent adds the string to the end of the request's current user agent.
+// AddToUserAgent 把字符串s加入到当前的UserAgent中
 func AddToUserAgent(r *Request, s string) {
 	curUA := r.HTTPRequest.Header.Get("User-Agent")
 	if len(curUA) > 0 {
@@ -548,7 +503,7 @@ func shouldRetryCancel(origErr error) bool {
 	}
 }
 
-// SanitizeHostForHeader removes default port from host and updates request.Host
+// SanitizeHostForHeader 把默认端口号删除
 func SanitizeHostForHeader(r *http.Request) {
 	host := getHost(r)
 	port := portOnly(host)
@@ -557,7 +512,6 @@ func SanitizeHostForHeader(r *http.Request) {
 	}
 }
 
-// Returns host from request
 func getHost(r *http.Request) string {
 	if r.Host != "" {
 		return r.Host
@@ -566,13 +520,6 @@ func getHost(r *http.Request) string {
 	return r.URL.Host
 }
 
-// Hostname returns u.Host, without any port number.
-//
-// If Host is an IPv6 literal with a port number, Hostname returns the
-// IPv6 literal without the square brackets. IPv6 literals may include
-// a zone identifier.
-//
-// Copied from the Go 1.8 standard library (net/url)
 func stripPort(hostport string) string {
 	colon := strings.IndexByte(hostport, ':')
 	if colon == -1 {
@@ -584,10 +531,6 @@ func stripPort(hostport string) string {
 	return hostport[:colon]
 }
 
-// Port returns the port part of u.Host, without the leading colon.
-// If u.Host doesn't contain a port, Port returns an empty string.
-//
-// Copied from the Go 1.8 standard library (net/url)
 func portOnly(hostport string) string {
 	colon := strings.IndexByte(hostport, ':')
 	if colon == -1 {
@@ -602,8 +545,6 @@ func portOnly(hostport string) string {
 	return hostport[colon+len(":"):]
 }
 
-// Returns true if the specified URI is using the standard port
-// (i.e. port 80 for HTTP URIs or 443 for HTTPS URIs)
 func isDefaultPort(scheme, port string) bool {
 	if port == "" {
 		return true

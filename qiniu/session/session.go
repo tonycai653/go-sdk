@@ -26,20 +26,10 @@ type Session struct {
 	Handlers request.Handlers
 }
 
-// New returns a new Session created from SDK defaults, config files,
-// environment, and user provided config files. Once the Session is created
-// it can be mutated to modify the Config or Handlers. The Session is safe to
-// be read concurrently, but it should not be written to concurrently.
+// New 返回一个默认的配置session, 会从默认的环境变量，配置文件读取配置
+// Session对象建立后，可以修改其中的配置项
 //
-// The shared config file (~/.qiniu/config) will be loaded in addition to
-// the shared credentials file (~/.qiniu/credentials). Values set in both the
-// shared config, and shared credentials will be taken from the shared
-// credentials file. Enabling the Shared Config will also allow the Session
-// to be built with retrieving credentials with AssumeRole set in the config.
-//
-// See the NewSessionWithOptions func for information on how to override or
-// control through code how the Session will be created. Such as specifying the
-// config profile, and controlling if shared config is enabled or not.
+// 配置文件(~/.qiniu/config)和密钥文件(~/.qiniu/credentials) 会被读取以获取配置信息，密钥信息
 func New(cfgs ...*qiniu.Config) (*Session, error) {
 	opts := Options{}
 	opts.Config.MergeIn(cfgs...)

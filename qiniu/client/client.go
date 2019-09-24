@@ -59,14 +59,12 @@ func New(cfg qiniu.Config, handlers request.Handlers, options ...func(*BaseClien
 	return svc
 }
 
-// NewRequest returns a new Request pointer for the service API
-// operation and parameters.
+// NewRequest 返回一个request.Request指针
 func (c *BaseClient) NewRequest(operation *request.API, params interface{}, data interface{}) *request.Request {
 	return request.New(c.Config, c.Handlers, c.Retryer, operation, params, data)
 }
 
-// AddDebugHandlers injects debug logging handlers into the service to log request
-// debug information.
+// AddDebugHandlers 注册打印请求和响应的处理函数
 func (c *BaseClient) AddDebugHandlers() {
 	if !c.Config.LogLevel.AtLeast(qiniu.LogDebug) {
 		return

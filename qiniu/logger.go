@@ -5,18 +5,10 @@ import (
 	"os"
 )
 
-// A LogLevelType defines the level logging should be performed at. Used to instruct
-// the SDK which statements should be logged.
+// LogLevelType 定义了日志输出的级别， 用来指导哪些日志可以输出
 type LogLevelType uint
 
-// LogLevel returns the pointer to a LogLevel. Should be used to workaround
-// not being able to take the address of a non-composite literal.
-func LogLevel(l LogLevelType) *LogLevelType {
-	return &l
-}
-
-// Value returns the LogLevel value or the default value LogOff if the LogLevel
-// is nil. Safe to use on nil value LogLevelTypes.
+// Value 返回日志输出级别， 如果l的值为nil， 那么返回LogOff
 func (l *LogLevelType) Value() LogLevelType {
 	if l != nil {
 		return *l
@@ -24,86 +16,60 @@ func (l *LogLevelType) Value() LogLevelType {
 	return LogOff
 }
 
-// Matches returns true if the v LogLevel is enabled by this LogLevel. Should be
-// used with logging sub levels. Is safe to use on nil value LogLevelTypes. If
-// LogLevel is nil, will default to LogOff comparison.
+// Matches 返回true如果日志级别v被开启，可以输出日志
 func (l *LogLevelType) Matches(v LogLevelType) bool {
 	c := l.Value()
 	return c&v == v
 }
 
-// AtLeast returns true if this LogLevel is at least high enough to satisfies v.
-// Is safe to use on nil value LogLevelTypes. If LogLevel is nil, will default
-// to LogOff comparison.
+// AtLeast 返回true,  如果l的级别大于等于v， 否则返回false
 func (l *LogLevelType) AtLeast(v LogLevelType) bool {
 	c := l.Value()
 	return c >= v
 }
 
 const (
-	// LogOff states that no logging should be performed by the SDK. This is the
-	// default state of the SDK, and should be use to disable all logging.
+	// LogOff 关闭所有的日志输出，这个是SDK默认的状态
 	LogOff LogLevelType = iota * 0x1000
 
-	// LogDebug state that debug output should be logged by the SDK. This should
-	// be used to inspect request made and responses received.
+	// LogDebug 用来给SDK调试输出日志
 	LogDebug
 )
 
-// Debug Logging Sub Levels
 const (
-	// LogDebugWithSigning states that the SDK should log request signing and
-	// presigning events. This should be used to log the signing details of
-	// requests for debugging. Will also enable LogDebug.
-	LogDebugWithSigning LogLevelType = LogDebug | (1 << iota)
+	// LogDebugWithHTTPBody 输出请求和响应的头信息， 体信息
+	LogDebugWithHTTPBody LogLevelType = LogDebug | (1 << iota)
 
-	// LogDebugWithHTTPBody states the SDK should log HTTP request and response
-	// HTTP bodys in addition to the headers and path. This should be used to
-	// see the body content of requests and responses made while using the SDK
-	// Will also enable LogDebug.
-	LogDebugWithHTTPBody
-
-	// LogDebugWithRequestRetries states the SDK should log when service requests will
-	// be retried. This should be used to log when you want to log when service
-	// requests are being retried. Will also enable LogDebug.
+	// LogDebugWithRequestRetries 当请求重试的时候，输出日志
 	LogDebugWithRequestRetries
 
-	// LogDebugWithRequestErrors states the SDK should log when service requests fail
-	// to build, send, validate, or unmarshal.
+	// LogDebugWithRequestErrors 开启日志输出，当请求在build, send, validate, unmarshal阶段失败的时候
 	LogDebugWithRequestErrors
 
-	// LogDebugWithEventStreamBody states the SDK should log EventStream
-	// request and response bodys. This should be used to log the EventStream
-	// wire unmarshaled message content of requests and responses made while
-	// using the SDK Will also enable LogDebug.
-	LogDebugWithEventStreamBody
+	// LogDebugMultipartUpload 开启分片上传调试日志
+	LogDebugMultipartUpload
 )
 
-// A Logger is a minimalistic interface for the SDK to log messages to. Should
-// be used to provide custom logging writers for the SDK to use.
+// Logger 是最小化的日志输出接口
 type Logger interface {
 	Log(...interface{})
 }
 
-// A LoggerFunc is a convenience type to convert a function taking a variadic
-// list of arguments and wrap it so the Logger interface can be used.
-//
+// LoggerFunc 用来封装函数，方便地实现Logger接口
 type LoggerFunc func(...interface{})
 
-// Log calls the wrapped function with the arguments provided
+// Log 用参数args, 调用封装的函数
 func (f LoggerFunc) Log(args ...interface{}) {
 	f(args...)
 }
 
-// NewDefaultLogger returns a Logger which will write log messages to stdout, and
-// use same formatting runes as the stdlib log.Logger
+// NewDefaultLogger 返回一个Logger对象
 func NewDefaultLogger() Logger {
 	return &defaultLogger{
 		logger: log.New(os.Stdout, "", log.LstdFlags),
 	}
 }
 
-// A defaultLogger provides a minimalistic logger satisfying the Logger interface.
 type defaultLogger struct {
 	logger *log.Logger
 }

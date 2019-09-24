@@ -9,9 +9,12 @@ type TokenType int
 // 根据签名算法的不同，可以分为Qiniu token, QBox token, BearToken, QiniuMacToken
 // 对外公开的API最常用的是Qiniu token和QBox token
 const (
+	// 当请求的API接口不需要鉴权的时候，可以使用该类型
+	TokenNone TokenType = iota
+
 	// Qiniu token, 详细的算法参考：
 	// https://developer.qiniu.com/kodo/kb/3702/QiniuToken
-	TokenQiniu TokenType = iota
+	TokenQiniu
 
 	// QBox token, 又称管理凭证, 详细的算法请参考：
 	// https://developer.qiniu.com/kodo/manual/1201/access-token
@@ -19,7 +22,4 @@ const (
 
 	TokenBear
 	TokenQiniuMac
-
-	// 当请求的API接口不需要鉴权的时候，可以使用该类型
-	TokenNone
 )

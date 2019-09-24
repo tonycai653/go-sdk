@@ -60,6 +60,18 @@ func NewPolicy() *PutPolicy {
 	return &PutPolicy{}
 }
 
+// GetBucketName 解析p.Scope字段，返回解析出来的存储空间名字
+func (p *PutPolicy) GetBucketName() (bucketName string) {
+	scope := p.Scope
+	if !strings.Contains(scope, ":") {
+		bucketName = scope
+	} else {
+		splits := strings.SplitN(scope, ":", 2)
+		bucketName = splits[0]
+	}
+	return
+}
+
 // WithScope 设置上传策略的scope字段, 这个字段是`必填的`。
 // bucket 是存储空间的名字，不能为空
 // key 是资源名称， 该字段的含义是变化的， 可以表示文件名， 文件前缀；

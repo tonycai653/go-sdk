@@ -17,18 +17,15 @@ import (
 	"github.com/qiniu/go-sdk/qiniu/request"
 )
 
-// Interface for matching types which also have a Len method.
 type lener interface {
 	Len() int
 }
 
-// BuildContentLengthHandler builds the content length of a request based on the body,
-// or will use the HTTPRequest.Header's "Content-Length" if defined. If unable
-// to determine request body length and no "Content-Length" was specified it will panic.
+// BuildContentLengthHandler 计算请求体的长度
+// 首先使用request.Body计算请求体的长度， 如果计算失败并且"Content-Length"设置了相应的长度， 那么使用该长度
+// 如果计算request.Body失败，Content-Length也没有设置，那么返回错误信息
 //
-// The Content-Length will only be added to the request if the length of the body
-// is greater than 0. If the body is empty or the current `Content-Length`
-// header is <= 0, the header will also be stripped.
+// 只有当Content-Length 的值大于0的时候，才会设置请求头， 否则发出的请求中不包含该请求头
 var BuildContentLengthHandler = request.NamedHandler{Name: "core.BuildContentLengthHandler", Fn: func(r *request.Request) {
 	var length int64
 
@@ -56,7 +53,7 @@ var BuildContentLengthHandler = request.NamedHandler{Name: "core.BuildContentLen
 
 var reStatusCode = regexp.MustCompile(`^(\d{3})`)
 
-// SendHandler is a request handler to send service request using HTTP client.
+// SendHandler 发出http 请求
 var SendHandler = request.NamedHandler{
 	Name: "core.SendHandler",
 	Fn: func(r *request.Request) {
@@ -64,23 +61,6 @@ var SendHandler = request.NamedHandler{
 		if r.DisableFollowRedirects {
 			sender = sendWithoutFollowRedirects
 		}
-
-		if http.NoBody == r.HTTPRequest.Body {
-			// Strip off the request body if the NoBody reader was used as a
-			// place holder for a request body. This prevents the SDK from
-			// making requests with a request body when it would be invalid
-			// to do so.
-			//
-			// Use a shallow copy of the http.Request to ensure the race condition
-			// of transport on Body will not trigger
-			reqOrig, reqCopy := r.HTTPRequest, *r.HTTPRequest
-			reqCopy.Body = nil
-			r.HTTPRequest = &reqCopy
-			defer func() {
-				r.HTTPRequest = reqOrig
-			}()
-		}
-
 		var err error
 		r.HTTPResponse, err = sender(r)
 		if err != nil {
@@ -111,10 +91,11 @@ var BodyHandler = request.NamedHandler{
 					return
 				}
 				r.SetStringBody(v.Encode())
-			case "multipart/form-data": // 主要是表单上传
 			default: // application/octet-stream, etc
 				if reader, ok := r.Params.(io.ReadSeeker); ok {
 					r.SetReaderBody(reader)
+				} else if bs, ok := r.Params.(*[]byte); ok {
+					r.SetBufferBody(*bs)
 				} else {
 					r.Error = qerr.New(request.ErrCodeSerialization, "request Params must be io.ReadSeeker for content-type: "+r.HTTPRequest.Header.Get("Content-Type"), nil)
 					return
@@ -138,15 +119,11 @@ func sendWithoutFollowRedirects(r *request.Request) (*http.Response, error) {
 }
 
 func handleSendError(r *request.Request, err error) {
-	// Prevent leaking if an HTTPResponse was returned. Clean up
-	// the body.
+	// 关闭Response.Body, 防止泄漏
 	if r.HTTPResponse != nil {
 		r.HTTPResponse.Body.Close()
 	}
-	// Capture the case where url.Error is returned for error processing
-	// response. e.g. 301 without location header comes back as string
-	// error and r.HTTPResponse is nil. Other URL redirect errors will
-	// comeback in a similar method.
+	// 捕获url.Error， 比如301跳转响应没有设置Location Header
 	if e, ok := err.(*url.Error); ok && e.Err != nil {
 		if s := reStatusCode.FindStringSubmatch(e.Err.Error()); s != nil {
 			code, _ := strconv.ParseInt(s[1], 10, 64)
@@ -159,19 +136,17 @@ func handleSendError(r *request.Request, err error) {
 		}
 	}
 	if r.HTTPResponse == nil {
-		// Add a dummy request response object to ensure the HTTPResponse
-		// value is consistent.
+		// 为了使r.HTTPResponse保持一致， 不为nil
 		r.HTTPResponse = &http.Response{
 			StatusCode: int(0),
 			Status:     http.StatusText(int(0)),
 			Body:       ioutil.NopCloser(bytes.NewReader([]byte{})),
 		}
 	}
-	// Catch all other request errors.
 	r.Error = qerr.New("RequestError", "send request failed", err)
 	r.Retryable = qiniu.Bool(true) // network errors are retryable
 
-	// Override the error with a context canceled error, if that was canceled.
+	// 如果是请求是被取消了， 设置r.Error为被取消
 	ctx := r.Context()
 	select {
 	case <-ctx.Done():
@@ -187,7 +162,7 @@ type ErrMsg struct {
 	Err string `json:"error"`
 }
 
-// ValidateResponseHandler is a request handler to validate service response.
+// ValidateResponseHandler 校验响应信息， 设置响应的错误信息
 var ValidateResponseHandler = request.NamedHandler{Name: "core.ValidateResponseHandler", Fn: func(r *request.Request) {
 	if r.HTTPResponse.StatusCode == 0 || r.HTTPResponse.StatusCode >= 300 {
 		var errMsg string
@@ -257,16 +232,13 @@ var ValidateResponseHandler = request.NamedHandler{Name: "core.ValidateResponseH
 		case 614:
 			r.Error = qerr.New(qerr.ErrResourceExist, errMsg, nil)
 		default:
-			r.Error = qerr.New("UnknownError", errMsg, nil)
+			r.Error = qerr.New(qerr.ErrUnknown, errMsg, nil)
 		}
 	}
 }}
 
-// AfterRetryHandler performs final checks to determine if the request should
-// be retried and how long to delay.
+// AfterRetryHandler 决定请求是否重试，重试的间隔多长
 var AfterRetryHandler = request.NamedHandler{Name: "core.AfterRetryHandler", Fn: func(r *request.Request) {
-	// If one of the other handlers already set the retry state
-	// we don't want to override it based on the service's state
 	if r.Retryable == nil || qiniu.BoolValue(r.Config.EnforceShouldRetryCheck) {
 		r.Retryable = qiniu.Bool(r.ShouldRetry(r))
 	}

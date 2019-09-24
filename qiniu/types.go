@@ -88,11 +88,8 @@ func (r ReaderSeekerCloser) HasLen() (int, bool) {
 	return 0, false
 }
 
-// GetLen returns the length of the bytes remaining in the underlying reader.
-// Checks first for Len(), then io.Seeker to determine the size of the
-// underlying reader.
-//
-// Will return -1 if the length cannot be determined.
+// GetLen 返回底层的Reader剩余未读数据大小
+// 如果获取大小失败， 就返回-1
 func (r ReaderSeekerCloser) GetLen() (int64, error) {
 	if l, ok := r.HasLen(); ok {
 		return int64(l), nil

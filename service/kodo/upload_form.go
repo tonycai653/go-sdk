@@ -2,6 +2,7 @@ package kodo
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"hash"
 	"hash/crc32"
@@ -14,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/qiniu/go-sdk/qiniu"
+	"github.com/qiniu/go-sdk/qiniu/credentials"
 	"github.com/qiniu/go-sdk/qiniu/qerr"
 	"github.com/qiniu/go-sdk/qiniu/request"
 )
@@ -28,15 +30,35 @@ const (
 	// ErrNoUpHosts 没有找到上传host
 	ErrNoUpHosts = "NoUpHostsError"
 
-	// ErrUpTokenEmpty 上传token是空
-	ErrUpTokenEmpty = "UpTokenEmptyError"
+	// ErrEmptyUpToken 空的上传token
+	ErrEmptyUpToken = "EmptyUptokenError"
 )
 
-// FormInput 是表单上传的输入结构体, 其中UpToken字段是必须填写的
+// UploadInput 表示上传的输入结构体, 其中UpToken字段是必须填写的
 // 如果指定了Filename字段， 那么会使用该文件的数据作为Data的内容。
 // 如果没有指定Filename, 那么Data字段必须设置
 // Filename字段和Data字段， 两个必填其一
-type FormInput struct {
+type UploadInput struct {
+	// 开启的goroutine数量, 只对于分片上传起作用
+	Concurrency int
+
+	// 可选，用户自定义参数
+	CustomParams map[string]string
+
+	// 可选， 如果MimeType为空， 服务段会自动判断文件类型
+	MimeType string
+
+	// 自定义元数据，可同时自定义多个元数据。
+	MetaKeys map[string]string
+
+	// 当 HTTP 请求指定 accept 头部时，七牛会返回 Content-Type 头部值。
+	// 该值用于兼容低版本 IE 浏览器行为。低版本 IE 浏览器在表单上传时，返回 application/json 表示下载
+	// 返回 text/plain 才会显示返回内容。
+	AcceptContentType string
+
+	// 原文件名。对于没有文件名的情况，建议填入随机生成的纯文本字符串。本参数的值将作为魔法变量$(fname)的值使用。
+	OrigFilename string
+
 	// 上传使用的域名，可以指定多个域名。
 	// 每个域名可以有scheme, 比如http, https。
 	// 如果没有指定scheme, 当UseHttps是`false`的时候，使用http上传， 否则使用https上传。
@@ -65,22 +87,8 @@ type FormInput struct {
 	// WithCrc32 是`true`就开启校验，否则不开启
 	WithCrc32 bool
 
-	// 可选，用户自定义参数
-	CustomParams map[string]string
-
-	// 可选， 如果MimeType为空， 服务段会自动判断文件类型
-	MimeType string
-
-	// 自定义元数据，可同时自定义多个元数据。
-	MetaKeys map[string]string
-
-	// 当 HTTP 请求指定 accept 头部时，七牛会返回 Content-Type 头部值。
-	// 该值用于兼容低版本 IE 浏览器行为。低版本 IE 浏览器在表单上传时，返回 application/json 表示下载
-	// 返回 text/plain 才会显示返回内容。
-	AcceptContentType string
-
-	// 原文件名。对于没有文件名的情况，建议填入随机生成的纯文本字符串。本参数的值将作为魔法变量$(fname)的值使用。
-	OrigFilename string
+	// 是否开启md5校验
+	CheckMd5 bool
 
 	// 要上传的数据
 	// 如果该值为nil, 那么上传的文件内容为空
@@ -101,128 +109,209 @@ type FormInput struct {
 	kodo *Kodo
 }
 
-func (input *FormInput) init(u *Kodo) error {
-	if input.kodo == nil {
-		input.kodo = u
+// dataSize 返回要上传的数据大小
+// 如果input.Data不是ReadSeeker, 那么返回-1， 表示数据大小不知道, 否则返回其大小
+// 当返回的数据大小是-1的时候，  error 保证为nil
+func (input *UploadInput) dataSize() (int64, error) {
+	if data, ok := input.Data.(io.ReadSeeker); ok {
+		return qiniu.SeekerLen(data)
 	}
-	if err := input.validateFields(); err != nil {
-		return err
-	}
-	if err := input.setData(); err != nil {
-		return err
-	}
-	return nil
+	return -1, nil
 }
 
-func (input *FormInput) validateFields() error {
-	if input.Key == "" {
-		return qerr.New(qerr.ErrStructFieldValidation, "FormInput.Key field cannot be empty", nil)
-	}
-	if input.UpToken == "" {
-		if input.PutPolicy == nil && input.BucketName != "" {
-			input.PutPolicy = &PutPolicy{
-				Scope: input.BucketName,
-			}
-		}
-		if input.PutPolicy == nil {
-			return qerr.New(ErrUpTokenEmpty, "upload token cannot be empty", nil)
-		}
-		upToken, err := input.PutPolicy.UploadToken(input.kodo.Config.Credentials)
-		if err != nil {
-			return err
-		}
-		input.UpToken = upToken
-	}
-	_, scope, err := DecodeUpToken(input.UpToken)
-	if err != nil {
-		return qerr.New(qerr.ErrCodeDeserialization, "failed to decode upload token: "+input.UpToken, err)
-	}
-	if !strings.Contains(scope, ":") {
-		input.BucketName = scope
-	} else {
-		splits := strings.SplitN(scope, ":", 2)
-		input.BucketName = splits[0]
-	}
-	return nil
-}
-
-func (input *FormInput) getOrigFilename() string {
+func (input *UploadInput) getOrigFilename() string {
 	if input.OrigFilename != "" {
 		return input.OrigFilename
 	}
 	return randomString(10)
 }
 
-func (input *FormInput) setSelector() error {
-	if input.Selector != nil {
-		return nil
-	}
-	if len(input.UpHosts) > 0 {
-		input.Selector = NewSelector(input.UpHosts)
-		return nil
-	}
-	var rd RegionDomains
-	if input.Region != "" {
-		region := GetDefaultRegion(input.Region)
-		rd = region.RegionDomains
-	}
-	if rd.AllUpDomainGroupEmpty() {
-		regionDomains, err := input.kodo.QueryRegionDomains(input.BucketName)
-		if err != nil {
-			return qerr.New(ErrQueryDomains, fmt.Sprintf("query region domains error for bucket: %s", input.BucketName), err)
-		}
-		rd = *regionDomains
-	}
-	grp := rd.SelectUpDomainGroup()
-	if grp.IsEmpty() {
-		return qerr.New(ErrNoUpHosts, "no upload host found", nil)
-	}
-	if len(grp.Main) > 0 {
-		input.Selector = NewSelector(grp.Main)
-	} else {
-		input.Selector = NewSelector(grp.Backup)
-	}
-	return nil
+func (input *UploadInput) getUpHost() (string, string, error) {
+	return getUpHost(input.Selector, input.UseHTTPS)
 }
 
-func (input *FormInput) setData() error {
-	if input.Filename != "" {
-		file, err := os.Open(input.Filename)
-		if err != nil {
-			return qerr.New(qerr.ErrOpenFile, fmt.Sprintf("failed to open file `%s`", input.Filename), err)
-		}
-		input.Data = file
+func (input *UploadInput) init(u *Kodo) error {
+	if input.kodo == nil {
+		input.kodo = u
 	}
-	// Region配置来自input和初始化session的时候的配置， 优先使用input中的配置
-	if input.kodo.Config.Region != "" && input.Region == "" {
-		input.Region = input.kodo.Config.Region
+	if input.Concurrency <= 0 {
+		input.Concurrency = DefaultUploadConcurrency
 	}
-	if err := input.setSelector(); err != nil {
+	if err := input.validateFields(); err != nil {
+		return err
+	}
+	if err := input.setupFields(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (input *FormInput) getUpHost() (host, scheme string, err error) {
-	h := input.Selector.Select()
+func (input *UploadInput) validateFields() error {
+	if err := validateUptoken(input.UpToken, input.PutPolicy, input.BucketName); err != nil {
+		return err
+	}
+	if err := validateUploadData(input.Filename, input.Data); err != nil {
+		return err
+	}
+	if err := validateKey(input.Key); err != nil {
+		return err
+	}
+	return nil
+}
+
+// setupFields 设置上传token, 上传的存储空间， 存储空间的区域， 上传域名选择器
+// 该函数中的函数调用顺序不能变， 各个函数调用会依赖之前函数调用设置的字段
+func (input *UploadInput) setupFields() error {
+	upToken, err := getUpToken(input.UpToken, input.PutPolicy, input.BucketName, input.kodo.Config.Credentials)
+	if err != nil {
+		return err
+	}
+	input.UpToken = upToken
+
+	_, policy, err := DecodeUpToken(input.UpToken)
+	if err != nil {
+		return err
+	}
+	input.BucketName = policy.GetBucketName()
+
+	if input.PutPolicy == nil {
+		input.PutPolicy = policy
+	}
+
+	input.Region = getRegion(input.kodo.Config.Region, input.Region)
+
+	selector, err := getSelector(input.UpHosts, input.Selector, input.Region, input.kodo, input.BucketName, true)
+	if err != nil {
+		return err
+	}
+	input.Selector = selector
+
+	if input.Data == nil {
+		data, err := getFileData(input.Filename)
+		if err != nil {
+			return err
+		}
+		input.Data = data
+	}
+	return nil
+}
+
+// validateKey 确保上传保存在存储中的文件名不为空
+func validateKey(key string) error {
+	if key == "" {
+		return qerr.New(qerr.ErrStructFieldValidation, "Key field is empty", nil)
+	}
+	return nil
+}
+
+// validateUpToken 检测上传token相关的字段是否存在
+func validateUptoken(upToken string, putPolicy *PutPolicy, bucketName string) error {
+	if upToken == "" && putPolicy == nil && bucketName == "" {
+		return qerr.New(qerr.ErrStructFieldValidation, "UpToken, PutPolicy, BucketName field are all empty", nil)
+	}
+	return nil
+}
+
+func validateUploadData(filename string, data io.Reader) error {
+	if filename == "" && data == nil {
+		return qerr.New(qerr.ErrStructFieldValidation, "field Filename and Data are both empty", nil)
+	}
+	return nil
+}
+
+// getUpToken 根据upToken, putPolicy, bucketName 字段返回最终的上传token
+// 如果upToken不为空， 直接返回该值
+// 如果putPolicy不为nil, 使用该策略计算上传token
+// 否则使用bucketName设置上传策略，计算上传token
+func getUpToken(upToken string, putPolicy *PutPolicy,
+	bucketName string, creds *credentials.Credentials) (string, error) {
+	if upToken != "" {
+		return upToken, nil
+	}
+	if putPolicy == nil && bucketName != "" {
+		putPolicy = &PutPolicy{
+			Scope: bucketName,
+		}
+	}
+	if putPolicy != nil {
+		upToken, err := putPolicy.UploadToken(creds)
+		if err != nil {
+			return "", err
+		}
+		return upToken, nil
+	}
+	return "", qerr.New(ErrEmptyUpToken, "UpToken, PutPolicy, BucketName field cannot be empty at the same time", nil)
+}
+
+func getSelector(upHosts []string, sel HostsSelector, region string,
+	kodo *Kodo, bucketName string, useMain bool) (HostsSelector, error) {
+	if sel != nil {
+		return sel, nil
+	}
+	if len(upHosts) > 0 {
+		return NewSelector(upHosts), nil
+	}
+	var rd RegionDomains
+	if region != "" {
+		region := GetDefaultRegion(region)
+		rd = region.RegionDomains
+	}
+	if rd.AllUpDomainGroupEmpty() {
+		regionDomains, err := kodo.QueryRegionDomains(bucketName)
+		if err != nil {
+			return nil, qerr.New(ErrQueryDomains, fmt.Sprintf("query region domains error for bucket: %s", bucketName), err)
+		}
+		rd = *regionDomains
+	}
+	grp := rd.SelectUpDomainGroup()
+	if grp.IsEmpty() {
+		return nil, qerr.New(ErrNoUpHosts, "no upload host found", nil)
+	}
+	if len(grp.Main) > 0 && useMain {
+		sel = NewSelector(grp.Main)
+	} else {
+		sel = NewSelector(grp.Backup)
+	}
+	return sel, nil
+}
+
+func getFileData(filename string) (io.Reader, error) {
+	if filename == "" {
+		return nil, nil
+	}
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, qerr.New(qerr.ErrOpenFile, fmt.Sprintf("failed to open file `%s`", filename), err)
+	}
+	return file, nil
+}
+
+func getRegion(globalRegion, specificRegion string) string {
+	// Region配置来自input和初始化session的时候的配置， 优先使用input中的配置
+	if specificRegion != "" {
+		return specificRegion
+	}
+	return globalRegion
+}
+
+func getUpHost(sel HostsSelector, useHTTPS bool) (host, scheme string, err error) {
+	h := sel.Select()
 	host, scheme, err = qiniu.NormalizeHost(h)
 	if err != nil {
 		return
 	}
-	if input.UseHTTPS {
+	if useHTTPS {
 		scheme = "https"
 	} else {
-		if strings.TrimSpace(scheme) == "" {
-			scheme = "http"
-		}
+		scheme = "http"
 	}
-	return host, scheme, nil
+	return
 }
 
-// DefaultFormOutput 是表单上传接口的数据返回数据承载体
+// UploadOutput 是上传接口的数据返回数据承载体
 // 该结构体只定义了默认情况下的返回值， 如果上传策略中定义了returnBody，
 // 服务端返回的数据会有其他的字段， 需要调用者定义相应的结构体.
-type DefaultFormOutput struct {
+type UploadOutput struct {
 	// 上传文件的hash值
 	Hash string `json:"hash,omitempty"`
 
@@ -250,17 +339,62 @@ type DefaultFormOutput struct {
 //     os.Exit(1)
 // }
 // fmt.Println(out)
-func (u *Kodo) UploadForm(input *FormInput, out interface{}) error {
+func (u *Kodo) UploadForm(input *UploadInput, out interface{}) error {
 	req, err := u.UploadFormRequest(input, out)
 	if err != nil {
 		return err
 	}
-	return req.Send()
+	var (
+		reqID      string
+		statusCode int
+	)
+	reqIDStatusCodeOption(req, &reqID, &statusCode)
+	err = req.Send()
+	return errRequestError(err, reqID, statusCode)
+}
+
+// UploadFormContext 使用表单上传的方式上传数据到七牛存储空间
+// Context可以用来中断表单上传的请求， 中断请求具有不确定性，可能中断的时候请求已经完整发出去
+// 数据大小小于等于defaults.DefaultsFormSize的时候，可以使用表单上传.
+// 大于该值的数据，建议使用分片上传, 如果使用表单上传的文件太大可能会造成内存溢出。
+// 如果上传策略中定义了returnBody, 那么接口返回的数据可能不只hash和key, 还有其他的内容。
+// 这个时候调用者要根据上传策略定义适合的结构体，作为out参数传递给该方法。
+// 示例: 该例子上传到存储空间`test`, 保存在空间的名字为`key.txt`
+// session := session.New()
+// kodoClient := kodo.New(session)
+// formInput := &kodo.FormInput{
+//      BucketName: "test",
+//      Key: "key.txt",
+//      Data: strings.NewReader("hello world")
+// }
+// out := DefaultFormOutput{}
+// ctx, cancelFunc := context.WithCancel(context.Background())
+// 有需要的话可以调用cancelFunc()取消上传请求
+// err := kodoClient.UploadFormContext(ctx, formInput, &out)
+// if err != nil {
+//     fmt.Println(err)
+//     os.Exit(1)
+// }
+// fmt.Println(out)
+func (u *Kodo) UploadFormContext(ctx context.Context, input *UploadInput, out interface{}) error {
+	req, err := u.UploadFormRequest(input, out)
+	if err != nil {
+		return err
+	}
+	req.SetContext(ctx)
+
+	var (
+		reqID      string
+		statusCode int
+	)
+	reqIDStatusCodeOption(req, &reqID, &statusCode)
+	err = req.Send()
+	return errRequestError(err, reqID, statusCode)
 }
 
 // UploadFormRequest 返回request.Request指针， 用于发起表单上传请求
 // 同时，返回FormOutput结构指针。
-func (u *Kodo) UploadFormRequest(input *FormInput, out interface{}) (req *request.Request, err error) {
+func (u *Kodo) UploadFormRequest(input *UploadInput, out interface{}) (req *request.Request, err error) {
 
 	// do some setup work, set fields and sanity check
 	if e := input.init(u); e != nil {

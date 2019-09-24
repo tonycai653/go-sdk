@@ -69,6 +69,9 @@ const (
 	// ErrConvertTypes 数据转换错误，比如string -> int
 	ErrConvertTypes = "ConvertError"
 
+	// ErrUnknown 未知错误
+	ErrUnknown = "UnknownError"
+
 	// ErrOpenFile 打开文件失败
 	ErrOpenFile = "OpenFileError"
 

@@ -5,7 +5,7 @@ import (
 )
 
 func TestQueryBucketIoUpDomains(t *testing.T) {
-	kclient := newKodoClient(true, true)
+	kclient := newKodoClient(true, nil)
 
 	ioUpDomains, err := kclient.QueryRegionDomains(getTestBucket())
 	if err != nil {

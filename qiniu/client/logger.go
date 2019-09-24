@@ -86,7 +86,7 @@ var LogHTTPRequestHeaderHandler = request.NamedHandler{
 }
 
 func logRequestHeader(r *request.Request) {
-	b, err := httputil.DumpRequestOut(r.HTTPRequest, r.Config.LogDebugHTTPRequestBody)
+	b, err := httputil.DumpRequestOut(r.HTTPRequest, false)
 	if err != nil {
 		r.Config.Logger.Log(fmt.Sprintf(logReqErrMsg,
 			r.ServiceName, r.Api.Name(), err))
@@ -133,7 +133,7 @@ func logResponse(r *request.Request) {
 	}
 
 	handlerFn := func(req *request.Request) {
-		b, err := httputil.DumpResponse(req.HTTPResponse, req.Config.LogDebugHTTPResponseBody)
+		b, err := httputil.DumpResponse(req.HTTPResponse, false)
 		if err != nil {
 			lw.Logger.Log(fmt.Sprintf(logRespErrMsg,
 				req.ServiceName, req.Api.Name(), err))
@@ -177,7 +177,7 @@ func logResponseHeader(r *request.Request) {
 		return
 	}
 
-	b, err := httputil.DumpResponse(r.HTTPResponse, r.Config.LogDebugHTTPResponseBody)
+	b, err := httputil.DumpResponse(r.HTTPResponse, false)
 	if err != nil {
 		r.Config.Logger.Log(fmt.Sprintf(logRespErrMsg,
 			r.ServiceName, r.Api.Name(), err))

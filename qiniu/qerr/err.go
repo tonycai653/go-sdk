@@ -1,47 +1,37 @@
 package qerr
 
 import (
-	"encoding/hex"
 	"fmt"
 )
 
-// An Error wraps lower level errors with code, message and an original error.
-// The underlying concrete error type may also satisfy other interfaces which
-// can be to used to obtain more specific information about the error.
+// Error 以错误码， 错误信息， 原始错误归类错误
+// SDK 中所有的错误信息都实现了该接口或者error接口
 //
-// Calling Error() or String() will always include the full information about
-// an error based on its underlying type.
+// 调用Error() 或者 String() 方法会返回完整的错误信息，包括封装的底层错误的信息
 type Error interface {
-	// Satisfy the generic error interface.
+	// 实现一般的错误接口
 	error
 
-	// Returns the short phrase depicting the classification of the error.
+	// 返回错误码
 	Code() string
 
-	// Returns the error details message.
+	// 返回具体的错误信息
 	Message() string
 
-	// Returns the original error if one was set.  Nil is returned if not set.
+	// 返回原始的错误，如果设置了的话， 不然返回nil
 	OrigErr() error
 }
 
-// BatchedErrors is a batch of errors which also wraps lower level errors with
-// code, message, and original errors. Calling Error() will include all errors
-// that occurred in the batch.
-//
-// Replaces BatchError
+// BatchedErrors 是一系列关联的错误， 调用Error()方法会返回所有的错误信息
 type BatchedErrors interface {
-	// Satisfy the base Error interface.
+	// 满足Error接口
 	Error
 
-	// Returns the original error if one was set.  Nil is returned if not set.
+	// 返回原始的一串错误， 如果没有设置，返回nil
 	OrigErrs() []error
 }
 
-// New returns an Error object described by the code, message, and origErr.
-//
-// If origErr satisfies the Error interface it will not be wrapped within a new
-// Error object and will instead be returned.
+// New 返回一个Error对象
 func New(code, message string, origErr error) Error {
 	var errs []error
 	if origErr != nil {
@@ -50,57 +40,32 @@ func New(code, message string, origErr error) Error {
 	return newBaseError(code, message, errs)
 }
 
-// NewBatchError returns an BatchedErrors with a collection of errors as an
-// array of errors.
-func NewBatchError(code, message string, errs []error) BatchedErrors {
+// NewBatchedError 返回一个BatchedErrors对象
+func NewBatchedError(code, message string, errs []error) BatchedErrors {
 	return newBaseError(code, message, errs)
 }
 
-// A RequestFailure is an interface to extract request failure information from
-// an Error such as the request ID of the failed request returned by a service.
-// RequestFailures may not always have a requestID value if the request failed
-// prior to reaching the service such as a connection error.
+// RequestFailure 是请求错误接口， 封装了错误请求的ID， 服务段返回的状态码
+// 错误请求可能没有requestID， 比如请求还没有达到服务端就遇到了网络错误
 type RequestFailure interface {
 	Error
 
-	// The status code of the HTTP response.
+	// HTTP 响应的状态码
 	StatusCode() int
 
-	// The request ID returned by the service for a request failure. This will
-	// be empty if no request ID is available such as the request failed due
-	// to a connection error.
+	// 服务端响应的错误请求状态码
 	RequestID() string
 }
 
-// NewRequestFailure returns a wrapped error with additional information for
-// request status code, and service requestID.
-//
-// Should be used to wrap all request which involve service requests. Even if
-// the request failed without a service response, but had an HTTP status code
-// that may be meaningful.
+// NewRequestFailure 返回 RequestFailure对象
 func NewRequestFailure(err Error, statusCode int, reqID string) RequestFailure {
 	return newRequestError(err, statusCode, reqID)
 }
 
-// UnmarshalError provides the interface for the SDK failing to unmarshal data.
-type UnmarshalError interface {
-	qiniuError
-	Bytes() []byte
-}
-
-// NewUnmarshalError returns an initialized UnmarshalError error wrapper adding
-// the bytes that fail to unmarshal to the error.
-func NewUnmarshalError(err error, msg string, bytes []byte) UnmarshalError {
-	return &unmarshalError{
-		qiniuError: New("UnmarshalError", msg, err),
-		bytes:      bytes,
-	}
-}
-
-// SprintError returns a string of the formatted error code.
+// SprintError 返回格式化的错误信息
 //
-// Both extra and origErr are optional.  If they are included their lines
-// will be added, but if they are not included their lines will be ignored.
+// 其中extra, origErr 是可选的参数.  如果设置了这两个参数，那么错误信息会加入相应的信息，
+// 否则就没有
 func SprintError(code, message, extra string, origErr error) string {
 	msg := fmt.Sprintf("%s: %s", code, message)
 	if extra != "" {
@@ -112,33 +77,19 @@ func SprintError(code, message, extra string, origErr error) string {
 	return msg
 }
 
-// A baseError wraps the code and message which defines an error. It also
-// can be used to wrap an original error object.
-//
-// Should be used as the root for errors satisfying the qerr.Error. Also
-// for any error which does not fit into a specific error wrapper type.
+// baseError 封装了code, message字段， 定义了错误信息的类别码， 具体的错误信息
 type baseError struct {
-	// Classification of error
+	// 错误类别码
 	code string
 
-	// Detailed information about error
+	// 具体的错误信息
 	message string
 
-	// Optional original error this error is based off of. Allows building
-	// chained errors.
+	// 引起该错误的原始的一系列错误
 	errs []error
 }
 
-// newBaseError returns an error object for the code, message, and errors.
-//
-// code is a short no whitespace phrase depicting the classification of
-// the error that is being created.
-//
-// message is the free flow string containing detailed information about the
-// error.
-//
-// origErrs is the error objects which will be nested under the new errors to
-// be returned.
+// newBaseErrror 返回baseError指针
 func newBaseError(code, message string, origErrs []error) *baseError {
 	b := &baseError{
 		code:    code,
@@ -149,11 +100,8 @@ func newBaseError(code, message string, origErrs []error) *baseError {
 	return b
 }
 
-// Error returns the string representation of the error.
-//
-// See ErrorWithExtra for formatting.
-//
-// Satisfies the error interface.
+// Error 返回错误信息的字符串表示
+// 实现error接口
 func (b baseError) Error() string {
 	size := len(b.errs)
 	if size > 0 {
@@ -163,25 +111,23 @@ func (b baseError) Error() string {
 	return SprintError(b.code, b.message, "", nil)
 }
 
-// String returns the string representation of the error.
-// Alias for Error to satisfy the stringer interface.
+// String 返回错误信息的字符串表示, 和Error方法返回相同
 func (b baseError) String() string {
 	return b.Error()
 }
 
-// Code returns the short phrase depicting the classification of the error.
+// Code 返回错误码
 func (b baseError) Code() string {
 	return b.code
 }
 
-// Message returns the error details message.
+// Message 返回具体的错误信息
 func (b baseError) Message() string {
 	return b.message
 }
 
-// OrigErr returns the original error if one was set. Nil is returned if no
-// error was set. This only returns the first element in the list. If the full
-// list is needed, use BatchedErrors.
+// OrigErr 如果设置了原始的错误， 返回原始的错误, 否则返回nil
+// 如果有多个原始的错误， 只返回第一个
 func (b baseError) OrigErr() error {
 	switch len(b.errs) {
 	case 0:
@@ -190,26 +136,22 @@ func (b baseError) OrigErr() error {
 		return b.errs[0]
 	default:
 		if err, ok := b.errs[0].(Error); ok {
-			return NewBatchError(err.Code(), err.Message(), b.errs[1:])
+			return NewBatchedError(err.Code(), err.Message(), b.errs[1:])
 		}
-		return NewBatchError("BatchedErrors",
+		return NewBatchedError("BatchedErrors",
 			"multiple errors occurred", b.errs)
 	}
 }
 
-// OrigErrs returns the original errors if one was set. An empty slice is
-// returned if no error was set.
+// OrigErrs 返回原始的多个错误， 如果没有设置，返回空的切片
 func (b baseError) OrigErrs() []error {
 	return b.errs
 }
 
-// So that the Error interface type can be included as an anonymous field
-// in the requestError struct and not conflict with the error.Error() method.
+// 为了Error接口可以以匿名的字段设置在requestError中， 避免与error.Error() 方法冲突
 type qiniuError Error
 
-// A requestError wraps a request or service error.
-//
-// Composed of baseError for code, message, and original error.
+// requestError 代表请求错误
 type requestError struct {
 	qiniuError
 	statusCode int
@@ -217,14 +159,6 @@ type requestError struct {
 	bytes      []byte
 }
 
-// newRequestError returns a wrapped error with additional information for
-// request status code, and service requestID.
-//
-// Should be used to wrap all request which involve service requests. Even if
-// the request failed without a service response, but had an HTTP status code
-// that may be meaningful.
-//
-// Also wraps original errors via the baseError.
 func newRequestError(err Error, statusCode int, requestID string) *requestError {
 	return &requestError{
 		qiniuError: err,
@@ -264,29 +198,6 @@ func (r requestError) OrigErrs() []error {
 		return b.OrigErrs()
 	}
 	return []error{r.OrigErr()}
-}
-
-type unmarshalError struct {
-	qiniuError
-	bytes []byte
-}
-
-// Error returns the string representation of the error.
-// Satisfies the error interface.
-func (e unmarshalError) Error() string {
-	extra := hex.Dump(e.bytes)
-	return SprintError(e.Code(), e.Message(), extra, e.OrigErr())
-}
-
-// String returns the string representation of the error.
-// Alias for Error to satisfy the stringer interface.
-func (e unmarshalError) String() string {
-	return e.Error()
-}
-
-// Bytes returns the bytes that failed to unmarshal.
-func (e unmarshalError) Bytes() []byte {
-	return e.bytes
 }
 
 // An error list that satisfies the golang interface

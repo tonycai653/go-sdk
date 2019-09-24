@@ -8,8 +8,7 @@ import (
 	"github.com/qiniu/go-sdk/qiniu/request"
 )
 
-// SDKVersionUserAgentHandler is a request handler for adding the SDK Version
-// to the user agent.
+// SDKVersionUserAgentHandler 把SDK版本好加入到请求UserAgent中
 var SDKVersionUserAgentHandler = request.NamedHandler{
 	Name: "core.SDKVersionUserAgentHandler",
 	Fn: request.MakeAddToUserAgentHandler(qiniu.SDKName, qiniu.SDKVersion,
@@ -19,11 +18,9 @@ var SDKVersionUserAgentHandler = request.NamedHandler{
 const execEnvVar = `QINIU_EXECUTION_ENV`
 const execEnvUAKey = `exec-env`
 
-// AddHostExecEnvUserAgentHander is a request handler appending the SDK's
-// execution environment to the user agent.
+// AddHostExecEnvUserAgentHander 把SDK执行环境加入到请求UserAgent中
 //
-// If the environment variable QINIU_EXECUTION_ENV is set, its value will be
-// appended to the user agent string.
+// 如果环境变量 QINIU_EXECUTION_ENV 设置了, 该环境变量的值会被加入到请求UserAgent中
 var AddHostExecEnvUserAgentHander = request.NamedHandler{
 	Name: "core.AddHostExecEnvUserAgentHander",
 	Fn: func(r *request.Request) {

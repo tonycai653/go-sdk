@@ -71,10 +71,8 @@ type Config struct {
 	// `http.DefaultClient`.
 	HTTPClient *http.Client
 
-	// An integer value representing the logging level. The default log level
-	// is zero (LogOff), which represents no logging. To enable logging set
-	// to a LogLevel Value.
-	LogLevel *LogLevelType
+	// LogLevel 是个整型值，代表日志输出的级别， 默认的日志输出级别为LogOff, 不输出日志
+	LogLevel LogLevelType
 
 	// The logger writer interface to write logging messages to. Defaults to
 	// standard out.
@@ -115,14 +113,6 @@ type Config struct {
 	// services which don't support dual stack endpoints.
 	UseDualStack *bool
 
-	// LogDebugHTTPRequestBody 指示当dump http request的时候是否输出body
-	// LogDebugHTTPRequestBody = true 的时候输出body, 否则不输出body
-	LogDebugHTTPRequestBody bool
-
-	// LogDebugHTTPResponseBody 指示当dump http response的时候是否输出body
-	// LogDebugHTTPResponseBody = true 的时候输出body, 否则不输出body
-	LogDebugHTTPResponseBody bool
-
 	// Host 一般都有默认的配置：
 	// RsHost： rs.qiniu.com
 	// RsfHost: rsf.qiniu.com
@@ -148,6 +138,9 @@ type Config struct {
 	// 比如要操作或者请求服务的存储空间属于不同的存储空间，可以
 	// 在具体的接口输入中设置region值，可以覆盖这个地方的配置
 	Region string
+
+	// UploadConcurrency 分片上传的goroutine最大并发上传数量
+	UploadConcurrency *int
 }
 
 // NewConfig returns a new Config pointer that can be chained with builder
@@ -167,6 +160,12 @@ func (c *Config) WithCredentials(creds *credentials.Credentials) *Config {
 // for chaining.
 func (c *Config) WithDisableSSL(disable bool) *Config {
 	c.DisableSSL = &disable
+	return c
+}
+
+// WithUploadConcurrency 设置分片上传的最大并发上传可以开启的goroutine数量
+func (c *Config) WithUploadConcurrency(concurrency int) *Config {
+	c.UploadConcurrency = &concurrency
 	return c
 }
 
@@ -191,10 +190,9 @@ func (c *Config) WithDisableParamValidation(disable bool) *Config {
 	return c
 }
 
-// WithLogLevel sets a config LogLevel value returning a Config pointer for
-// chaining.
+// WithLogLevel 设置日志输出级别LogLevel
 func (c *Config) WithLogLevel(level LogLevelType) *Config {
-	c.LogLevel = &level
+	c.LogLevel = level
 	return c
 }
 
@@ -209,18 +207,6 @@ func (c *Config) WithLogger(logger Logger) *Config {
 // pointer for chaining.
 func (c *Config) WithUseDualStack(enable bool) *Config {
 	c.UseDualStack = &enable
-	return c
-}
-
-// WithLogDebugHTTPRequestBody 开启输出http 请求body选项
-func (c *Config) WithLogDebugHTTPRequestBody(enable bool) *Config {
-	c.LogDebugHTTPRequestBody = enable
-	return c
-}
-
-// WithLogDebugHTTPResponseBody 开启输出http响应body选项
-func (c *Config) WithLogDebugHTTPResponseBody(enable bool) *Config {
-	c.LogDebugHTTPResponseBody = enable
 	return c
 }
 
@@ -272,9 +258,7 @@ func mergeInConfig(dst *Config, other *Config) {
 		dst.HTTPClient = other.HTTPClient
 	}
 
-	if other.LogLevel != nil {
-		dst.LogLevel = other.LogLevel
-	}
+	dst.LogLevel = other.LogLevel
 
 	if other.Logger != nil {
 		dst.Logger = other.Logger
@@ -307,8 +291,6 @@ func mergeInConfig(dst *Config, other *Config) {
 	if other.APIHost != "" {
 		dst.APIHost = other.APIHost
 	}
-	dst.LogDebugHTTPRequestBody = other.LogDebugHTTPRequestBody
-	dst.LogDebugHTTPResponseBody = other.LogDebugHTTPResponseBody
 }
 
 // Copy will return a shallow copy of the Config object. If any additional

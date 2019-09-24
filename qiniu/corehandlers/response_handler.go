@@ -3,6 +3,7 @@ package corehandlers
 import (
 	"encoding/json"
 
+	"github.com/qiniu/go-sdk/qiniu/defs"
 	"github.com/qiniu/go-sdk/qiniu/qerr"
 	"github.com/qiniu/go-sdk/qiniu/request"
 )
@@ -15,7 +16,7 @@ var UnmarshalHandler = request.NamedHandler{
 			contentType := r.HTTPResponse.Header.Get("Content-Type")
 
 			switch contentType {
-			case "application/json":
+			case defs.CONTENT_TYPE_JSON:
 				err := json.NewDecoder(r.HTTPResponse.Body).Decode(r.Data)
 				if err != nil {
 					r.Error = qerr.New(qerr.ErrCodeDeserialization, "failed to decode data with content-type: "+contentType, err)

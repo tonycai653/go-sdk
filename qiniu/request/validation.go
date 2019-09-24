@@ -90,7 +90,7 @@ func (e ErrInvalidParams) Error() string {
 
 // OrigErr returns the invalid parameters as a qerr.BatchedErrors value
 func (e ErrInvalidParams) OrigErr() error {
-	return qerr.NewBatchError(
+	return qerr.NewBatchedError(
 		InvalidParameterErrCode, e.Message(), e.OrigErrs())
 }
 

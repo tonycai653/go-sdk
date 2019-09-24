@@ -35,7 +35,6 @@ func newClient(cfg qiniu.Config, handlers request.Handlers) *Kodo {
 			handlers,
 		),
 	}
-
 	// Handlers
 	svc.Handlers.Build.PushBackNamed(corehandlers.BodyHandler)
 	svc.Handlers.Unmarshal.PushBackNamed(corehandlers.UnmarshalHandler)
