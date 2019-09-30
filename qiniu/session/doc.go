@@ -1,20 +1,16 @@
 /*
-Package session provides configuration for the SDK's service clients.
+Package session 为SDK的服务客户端提供配置信息
 
-Sessions can be shared across all service clients that share the same base
-configuration.  The Session is built from the SDK's default configuration and
-request handlers.
+如果多个服务客户端共享同样的配置， 那么一个Session实例可以在多个服务客户端之间共享.
+Session 的配置信息和handlers会提供默认的配置， 用户在建立Session后可以修改配置.
 
-Sessions should be cached when possible, because creating a new Session will
-load all configuration values from the environment, and config files each time
-the Session is created. Sharing the Session value across all of your service
-clients will ensure the configuration is loaded the fewest number of times possible.
+最好可以把Session实例缓存起来， 因为Session的建立涉及到环境变量， 配置文件的加载.
+每个信息的Session实例的建立都会重复该过程, 多个实例共享Session配置可以减少这个过程.
 
-Concurrency
+同步
 
-Sessions are safe to use concurrently as long as the Session is not being
-modified. The SDK will not modify the Session once the Session has been created.
-Creating service clients concurrently from a shared Session is safe.
+只要没有goroutine修改该值，多个goroutine同步使用Session是安全的， 因为Session创建以后
+SDK默认代码逻辑不会修改Session的信息.
 
 Sessions from Shared Config
 
@@ -26,12 +22,10 @@ be created. Using the NewSessionWithOptions with SharedConfigState set to
 SharedConfigEnable will create the session as if the QINIU_SDK_LOAD_CONFIG
 environment variable was set.
 
-Creating Sessions
+创建Session对象
 
-When creating Sessions optional api.Config values can be passed in that will
-override the default, or loaded config values the Session is being created
-with. This allows you to provide additional, or case based, configuration
-as needed.
+当创建Session对象的时候， 可以传入可选的api.Config配置信息来覆盖默认的配置信息.
+这样可以针对特殊情况进行特殊化的配置.
 
 By default NewSession will only load credentials from the shared credentials
 file (~/.qiniu/credentials). If the QINIU_SDK_LOAD_CONFIG environment variable is

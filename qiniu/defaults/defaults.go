@@ -1,10 +1,6 @@
-// Package defaults is a collection of helpers to retrieve the SDK's default
-// configuration and handlers.
+// Package defaults 包含了一些帮助函数来获取SDK的默认配置和默认的handlers
 //
-// Generally this package shouldn't be used directly.
-// This package is useful when you need to reset the defaults
-// of configuration for service client to the SDK defaults before setting
-// additional parameters.
+// 一般情况下，这个包不应该被直接使用，使用Session初始化的时候会调用该包配置默认项
 package defaults
 
 import (
@@ -17,13 +13,13 @@ import (
 	"github.com/qiniu/go-sdk/qiniu/request"
 )
 
-// A Defaults provides a collection of default values for SDK clients.
+// Defaults 提供了默认的配置选项和handlers
 type Defaults struct {
 	Config   *qiniu.Config
 	Handlers request.Handlers
 }
 
-// Get returns the SDK's default values with Config and handlers pre-configured.
+// Get 获取默认的配置
 func Get() Defaults {
 	cfg := Config()
 	handlers := Handlers()
@@ -34,17 +30,10 @@ func Get() Defaults {
 	}
 }
 
-// Config returns the default configuration without credentials.
-// To retrieve a config with credentials also included use
-// `defaults.Get().Config` instead.
-//
-// Generally you shouldn't need to use this method directly, but
-// is available if you need to reset the configuration of an
-// existing service client or session.
+// Config 返回默认的配置， 密钥信息默认是没有设置的
 func Config() *qiniu.Config {
 	return qiniu.NewConfig().
 		WithHTTPClient(http.DefaultClient).
-		WithMaxRetries(qiniu.UseServiceDefaultRetries).
 		WithLogger(qiniu.NewDefaultLogger()).
 		WithLogLevel(qiniu.LogOff).
 		WithRsHost(defs.DefaultRsHost).
@@ -53,11 +42,7 @@ func Config() *qiniu.Config {
 		WithUCHost(defs.DefaultUcHost)
 }
 
-// Handlers returns the default request handlers.
-//
-// Generally you shouldn't need to use this method directly, but
-// is available if you need to reset the request handlers of an
-// existing service client or session.
+// Handlers 返回默认的请求handlers
 func Handlers() request.Handlers {
 	var handlers request.Handlers
 
@@ -74,11 +59,7 @@ func Handlers() request.Handlers {
 	return handlers
 }
 
-// CredChain returns the default credential chain.
-//
-// Generally you shouldn't need to use this method directly, but
-// is available if you need to reset the credentials of an
-// existing service client or session's Config.
+// CredChain 返回默认的密钥配置链
 func CredChain(cfg *qiniu.Config, handlers request.Handlers) *credentials.Credentials {
 	return credentials.NewCredentials(&credentials.ChainProvider{
 		VerboseErrors: qiniu.BoolValue(cfg.CredentialsChainVerboseErrors),

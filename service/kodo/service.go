@@ -76,7 +76,7 @@ func (c *Kodo) QueryRegionDomainsRequest(bucket string) (req *request.Request, d
 		Scheme:      "http",
 		Path:        fmt.Sprintf("/v3/query?ak=%s&bucket=%s", v.AccessKey, bucket),
 		Method:      "GET",
-		Host:        c.Config.UcHost,
+		Host:        *c.Config.UcHost,
 		ContentType: defs.CONTENT_TYPE_FORM,
 		APIName:     "v3query",
 		ServiceName: ServiceName,

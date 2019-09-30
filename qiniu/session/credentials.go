@@ -8,7 +8,6 @@ import (
 	"github.com/qiniu/go-sdk/qiniu/qerr"
 )
 
-// valid credential source values
 const (
 	credSourceEnvironment = "Environment"
 )
@@ -18,28 +17,22 @@ func resolveCredentials(cfg *qiniu.Config,
 	sessOpts Options,
 ) (*credentials.Credentials, error) {
 
-	// Credentials from environment variables
 	if len(envCfg.Creds.AccessKey) > 0 {
 		return credentials.NewStaticCredentialsFromCreds(envCfg.Creds), nil
 	}
 
-	// Fallback to the "default" credential resolution chain.
-	return resolveCredsFromProfile(cfg, envCfg, sharedCfg, sessOpts)
+	return resolveCredsFromConfigFile(cfg, envCfg, sharedCfg, sessOpts)
 }
 
-func resolveCredsFromProfile(cfg *qiniu.Config,
+func resolveCredsFromConfigFile(cfg *qiniu.Config,
 	envCfg envConfig, sharedCfg sharedConfig,
 	sessOpts Options) (*credentials.Credentials, error) {
 
 	if len(sharedCfg.Creds.AccessKey) > 0 {
-		// Static Credentials from Shared Config/Credentials file.
 		return credentials.NewStaticCredentialsFromCreds(
 			sharedCfg.Creds,
 		), nil
 	}
-	// Fallback to default credentials provider, include mock errors
-	// for the credential chain so user can identify why credentials
-	// failed to be retrieved.
 	return credentials.NewCredentials(&credentials.ChainProvider{
 		VerboseErrors: qiniu.BoolValue(cfg.CredentialsChainVerboseErrors),
 		Providers: []credentials.Provider{
@@ -49,7 +42,7 @@ func resolveCredsFromProfile(cfg *qiniu.Config,
 			},
 			&credProviderError{
 				Err: qerr.New("SharedCredsLoad",
-					fmt.Sprintf("failed to load profile"), nil),
+					fmt.Sprintf("failed to load config file"), nil),
 			},
 		},
 	}), nil

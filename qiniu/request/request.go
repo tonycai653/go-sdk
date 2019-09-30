@@ -26,8 +26,8 @@ const (
 	// ErrCodeResponseTimeout 读取网络数据响应超时
 	ErrCodeResponseTimeout = "ResponseTimeout"
 
-	// CanceledErrorCode http请求被取消
-	CanceledErrorCode = "RequestCanceled"
+	// ErrCodeCanceled http请求被取消
+	ErrCodeCanceled = "RequestCanceled"
 )
 
 // Request 是发送到服务端的请求
@@ -190,7 +190,7 @@ func WithGetResponseStatusCode(statusCode *int) Option {
 // WithLogLevel 构建一个请求Option, 用来设置请求的日志级别
 func WithLogLevel(l qiniu.LogLevelType) Option {
 	return func(r *Request) {
-		r.Config.LogLevel = l
+		r.Config.LogLevel = &l
 	}
 }
 
@@ -468,37 +468,25 @@ type temporary interface {
 func shouldRetryCancel(origErr error) bool {
 	switch err := origErr.(type) {
 	case qerr.Error:
-		if err.Code() == CanceledErrorCode {
+		if err.Code() == ErrCodeCanceled {
 			return false
 		}
 		return shouldRetryCancel(err.OrigErr())
 	case *url.Error:
-		if strings.Contains(err.Error(), "connection refused") {
-			// Refused connections should be retried as the service may not yet
-			// be running on the port. Go TCP dial considers refused
-			// connections as not temporary.
-			return true
-		}
-		// *url.Error only implements Temporary after golang 1.6 but since
-		// url.Error only wraps the error:
 		return shouldRetryCancel(err.Err)
 	case temporary:
-		// If the error is temporary, we want to allow continuation of the
-		// retry process
+		// 如果是暂时性地错误， 我们希望重试请求
 		return err.Temporary() || isErrConnectionReset(origErr)
 	case nil:
-		// `qerr.Error.OrigErr()` can be nil, meaning there was an error but
-		// because we don't know the cause, it is marked as retryable. See
-		// TestRequest4xxUnretryable for an example.
+		// `qerr.Error.OrigErr()` 可能是nil, 表示发生了错误， 但是不知道具体的原因, 我们认为这个是可以重试的
 		return true
 	default:
 		switch err.Error() {
 		case "net/http: request canceled",
 			"net/http: request canceled while waiting for connection":
-			// known 1.5 error case when an http request is cancelled
 			return false
 		}
-		// here we don't know the error; so we allow a retry.
+		// 不知道什么错误， 默认允许重试
 		return true
 	}
 }

@@ -24,7 +24,7 @@ func TestKodoObjectManagement(t *testing.T) {
 
 func TestRequestError(t *testing.T) {
 	cfg := &qiniu.Config{
-		RsHost: "http://localhost",
+		RsHost: qiniu.String("http://localhost"),
 	}
 	kclient := newKodoClient(false, cfg)
 	testBucket := getTestBucket()

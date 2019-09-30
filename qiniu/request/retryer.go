@@ -7,68 +7,35 @@ import (
 	"github.com/qiniu/go-sdk/qiniu/qerr"
 )
 
-// Retryer is an interface to control retry logic for a given service.
-// The default implementation used by most services is the client.DefaultRetryer
-// structure, which contains basic retry logic using exponential backoff.
+// Retryer 接口控制请求重试的逻辑
+// 默认的请求重试逻辑在client.DefaultRetryer中实现
 type Retryer interface {
+	// 防止和request.RetryDelay
 	RetryRules(*Request) time.Duration
 	ShouldRetry(*Request) bool
 	MaxRetries() int
 }
 
-// WithRetryer sets a config Retryer value to the given Config returning it
-// for chaining.
+// WithRetryer 配置qiniu.Config中的重试逻辑
 func WithRetryer(cfg *qiniu.Config, retryer Retryer) *qiniu.Config {
 	cfg.Retryer = retryer
 	return cfg
 }
 
-// retryableCodes is a collection of service response codes which are retry-able
-// without any further action.
+// retryableCodes 包含了可以重试的错误码
 var retryableCodes = map[string]struct{}{
+	qerr.ErrCrc32Verification: {},
 	"RequestError":            {},
 	"RequestTimeout":          {},
 	ErrCodeResponseTimeout:    {},
 	"RequestTimeoutException": {}, // Glacier's flavor of RequestTimeout
 }
 
-var throttleCodes = map[string]struct{}{
-	"ProvisionedThroughputExceededException": {},
-	"Throttling":                             {},
-	"ThrottlingException":                    {},
-	"RequestLimitExceeded":                   {},
-	"RequestThrottled":                       {},
-	"RequestThrottledException":              {},
-	"TooManyRequestsException":               {}, // Lambda functions
-	"PriorRequestNotComplete":                {}, // Route53
-	"TransactionInProgressException":         {},
-}
-
-// credsExpiredCodes is a collection of error codes which signify the credentials
-// need to be refreshed. Expired tokens require refreshing of credentials, and
-// resigning before the request can be retried.
-var credsExpiredCodes = map[string]struct{}{
-	"ExpiredToken":          {},
-	"ExpiredTokenException": {},
-	"RequestExpired":        {}, // EC2 Only
-}
-
-func isCodeThrottle(code string) bool {
-	_, ok := throttleCodes[code]
-	return ok
-}
-
 func isCodeRetryable(code string) bool {
 	if _, ok := retryableCodes[code]; ok {
 		return true
 	}
-
-	return isCodeExpiredCreds(code)
-}
-
-func isCodeExpiredCreds(code string) bool {
-	_, ok := credsExpiredCodes[code]
-	return ok
+	return false
 }
 
 var validParentCodes = map[string]struct{}{
@@ -105,8 +72,7 @@ func isNestedErrorRetryable(parentErr qerr.Error) bool {
 	return isErrConnectionReset(err)
 }
 
-// IsErrorRetryable returns whether the error is retryable, based on its Code.
-// Returns false if error is nil.
+// IsErrorRetryable 判断错误是否可以重试
 func IsErrorRetryable(err error) bool {
 	if err != nil {
 		if aerr, ok := err.(qerr.Error); ok {
@@ -116,48 +82,8 @@ func IsErrorRetryable(err error) bool {
 	return false
 }
 
-// IsErrorThrottle returns whether the error is to be throttled based on its code.
-// Returns false if error is nil.
-func IsErrorThrottle(err error) bool {
-	if err != nil {
-		if aerr, ok := err.(qerr.Error); ok {
-			return isCodeThrottle(aerr.Code())
-		}
-	}
-	return false
-}
-
-// IsErrorExpiredCreds returns whether the error code is a credential expiry error.
-// Returns false if error is nil.
-func IsErrorExpiredCreds(err error) bool {
-	if err != nil {
-		if aerr, ok := err.(qerr.Error); ok {
-			return isCodeExpiredCreds(aerr.Code())
-		}
-	}
-	return false
-}
-
-// IsErrorRetryable returns whether the error is retryable, based on its Code.
-// Returns false if the request has no Error set.
-//
-// Alias for the utility function IsErrorRetryable
+// IsErrorRetryable 返回true， 如果错误可以重试， 否则false
+// 根据请求错误的错误码来判断错误是否可以重试
 func (r *Request) IsErrorRetryable() bool {
 	return IsErrorRetryable(r.Error)
-}
-
-// IsErrorThrottle returns whether the error is to be throttled based on its code.
-// Returns false if the request has no Error set
-//
-// Alias for the utility function IsErrorThrottle
-func (r *Request) IsErrorThrottle() bool {
-	return IsErrorThrottle(r.Error)
-}
-
-// IsErrorExpired returns whether the error code is a credential expiry error.
-// Returns false if the request has no Error set.
-//
-// Alias for the utility function IsErrorExpiredCreds
-func (r *Request) IsErrorExpired() bool {
-	return IsErrorExpiredCreds(r.Error)
 }

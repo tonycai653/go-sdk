@@ -107,6 +107,11 @@ type UploadInput struct {
 
 	// 调用者不需要设置该字段
 	kodo *Kodo
+
+	// 数据总的大小， 程序会尽量获取该大小，如果无法获取总的大小，那么该值为-1
+	totalSize int64
+
+	initialized bool
 }
 
 // dataSize 返回要上传的数据大小
@@ -131,6 +136,9 @@ func (input *UploadInput) getUpHost() (string, string, error) {
 }
 
 func (input *UploadInput) init(u *Kodo) error {
+	if input.initialized {
+		return nil
+	}
 	if input.kodo == nil {
 		input.kodo = u
 	}
@@ -192,6 +200,9 @@ func (input *UploadInput) setupFields() error {
 			return err
 		}
 		input.Data = data
+	}
+	if input.totalSize, err = input.dataSize(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -280,18 +291,23 @@ func getFileData(filename string) (io.Reader, error) {
 		return nil, nil
 	}
 	file, err := os.Open(filename)
+	defer file.Close()
+
 	if err != nil {
 		return nil, qerr.New(qerr.ErrOpenFile, fmt.Sprintf("failed to open file `%s`", filename), err)
 	}
 	return file, nil
 }
 
-func getRegion(globalRegion, specificRegion string) string {
+func getRegion(globalRegion *string, specificRegion string) string {
 	// Region配置来自input和初始化session的时候的配置， 优先使用input中的配置
 	if specificRegion != "" {
 		return specificRegion
 	}
-	return globalRegion
+	if globalRegion != nil {
+		return *globalRegion
+	}
+	return ""
 }
 
 func getUpHost(sel HostsSelector, useHTTPS bool) (host, scheme string, err error) {

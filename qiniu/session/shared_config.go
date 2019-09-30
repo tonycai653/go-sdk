@@ -9,19 +9,13 @@ import (
 )
 
 const (
-	// Static Credentials group
-	accessKeyIDKey  = `qiniu_access_key_id`     // group required
-	secretAccessKey = `qiniu_secret_access_key` // group required
+	accessKeyIDKey  = `qiniu_access_key_id`
+	secretAccessKey = `qiniu_secret_access_key`
 
 	rsHostKey  = "qiniu_rs_host"
 	rsfHostKey = "qiniu_rsf_host"
 	apiHostKey = "qiniu_api_host"
 	ucHostKey  = "qiniu_uc_host"
-
-	// DefaultSharedConfigProfile is the default profile to be used when
-	// loading configuration from the config files if another profile name
-	// is not provided.
-	DefaultSharedConfigProfile = `default`
 )
 
 /*
@@ -35,11 +29,10 @@ var zoneKeys = map[string]string{
 }
 */
 
-// sharedConfig represents the configuration fields of the SDK config files.
+// sharedConfig 代表SDK配置文件的配置项
 type sharedConfig struct {
-	// Credentials values from the config file. Both qiniu_access_key_id
-	// and qiniu_secret_access_key must be provided together in the same file
-	// to be considered valid. The values will be ignored if not a complete group.
+	// 从配置文件获取密钥信息， qiniu_access_key_id, qiniu_secret_access_key都要设置才行
+	// 否则视为无效的字段，相当于没有设置密钥信息
 	//
 	//	qiniu_access_key_id
 	//	qiniu_secret_access_key
@@ -60,24 +53,14 @@ type sharedConfig struct {
 	*/
 }
 
-var defaultSections = []string{"profile", "host"}
+var defaultSections = []string{"credentials", "host"}
 
 type sharedConfigFile struct {
 	Filename string
 	IniData  ini.Sections
 }
 
-// loadSharedConfig retrieves the configuration from the list of files
-// using the profile provided. The order the files are listed will determine
-// precedence. Values in subsequent files will overwrite values defined in
-// earlier files.
-//
-// For example, given two files A and B. Both define credentials. If the order
-// of the files are A then B, B's credential values will be used instead of A's.
-//
-// See sharedConfig.setFromFile for information how the config files
-// will be loaded.
-func loadSharedConfig(profiles []string, filenames []string) (sharedConfig, error) {
+func loadSharedConfig(sections []string, filenames []string) (sharedConfig, error) {
 
 	files, err := loadSharedConfigIniFiles(filenames)
 	if err != nil {
@@ -85,25 +68,19 @@ func loadSharedConfig(profiles []string, filenames []string) (sharedConfig, erro
 	}
 
 	cfg := sharedConfig{}
-	for _, profile := range profiles {
-		if len(profile) == 0 {
+	for _, section := range sections {
+		if len(section) == 0 {
 			continue
 		}
-		_ = cfg.setFromIniFiles(profile, files)
+		_ = cfg.setFromIniFiles(section, files)
 	}
 	return cfg, nil
 }
 
-// loadSharedConfigDefaultSections retrieves the configuration from the list of files
-// using the default sections. The order the files are listed will determine
-// precedence. Values in subsequent files will overwrite values defined in
-// earlier files.
+// loadSharedConfigDefaultSections 从配置文件列表中获取配置信息， 配置文件在列表中的顺序
+// 决定了配置项的优先级， 后面的配置文件会覆盖前面配置文件的值
 //
-// For example, given two files A and B. Both define credentials. If the order
-// of the files are A then B, B's credential values will be used instead of A's.
-//
-// See sharedConfig.setFromFile for information how the config files
-// will be loaded.
+// 比如A，和B文件都定义了密钥信息， 如果A文件在B文件之前， 那么会使用B文件的信息
 func loadSharedConfigDefaultSections(filenames []string) (sharedConfig, error) {
 	return loadSharedConfig(defaultSections, filenames)
 }
@@ -114,7 +91,6 @@ func loadSharedConfigIniFiles(filenames []string) ([]sharedConfigFile, error) {
 	for _, filename := range filenames {
 		sections, err := ini.OpenFile(filename)
 		if aerr, ok := err.(qerr.Error); ok && aerr.Code() == ini.ErrCodeUnableToReadFile {
-			// Skip files which can't be opened and read for whatever reason
 			continue
 		} else if err != nil {
 			return nil, SharedConfigLoadError{Filename: filename, Err: err}
@@ -128,35 +104,28 @@ func loadSharedConfigIniFiles(filenames []string) ([]sharedConfigFile, error) {
 	return files, nil
 }
 
-func (cfg *sharedConfig) setFromIniFiles(profile string, files []sharedConfigFile) error {
-	// Trim files from the list that don't exist.
+func (cfg *sharedConfig) setFromIniFiles(section string, files []sharedConfigFile) error {
 	for _, f := range files {
-		if err := cfg.setFromIniFile(profile, f); err != nil {
-			if _, ok := err.(SharedConfigProfileNotExistsError); ok {
-				// Ignore proviles missings
+		if err := cfg.setFromIniFile(section, f); err != nil {
+			if _, ok := err.(SharedConfigSectionNotExistsError); ok {
 				continue
 			}
 			return err
 		}
 	}
-
 	return nil
 }
 
-// setFromFile loads the configuration from the file.
-// A sharedConfig pointer type value is used so that
-// multiple config file loadings can be chained.
-//
-// Only loads complete logically grouped values, and will not set fields in cfg
-// for incomplete grouped values in the config. Such as credentials. For example
-// if a config file only includes qiniu_access_key_id but no qiniu_secret_access_key
-// the qiniu_access_key_id will be ignored.
-func (cfg *sharedConfig) setFromIniFile(profile string, file sharedConfigFile) error {
-	section, ok := file.IniData.GetSection(profile)
+// setFromIniFile 从文件中加载配置信息
+// 对于逻辑上是一组信息必须完备的字段， 如果一组中的某个字段没有设置，那么这一组字段都不会设置
+// 比如密钥信息，如果只配置了qiniu_access_key_id, 但是没有配置qiniu_secret_access_key， 或者反之，
+// 那么这两个字段都被忽略，密钥信息相当于没有配置
+func (cfg *sharedConfig) setFromIniFile(section string, file sharedConfigFile) error {
+	sectionStruct, ok := file.IniData.GetSection(section)
 	if !ok {
-		return SharedConfigProfileNotExistsError{Profile: profile, Err: nil}
+		return SharedConfigSectionNotExistsError{Section: section, Err: nil}
 	}
-	switch profile {
+	switch section {
 	/*
 		case "z0":
 			h := zoneHostFromSection(section)
@@ -175,9 +144,9 @@ func (cfg *sharedConfig) setFromIniFile(profile string, file sharedConfigFile) e
 			cfg.As0 = *h
 	*/
 	case "host":
-		cfg.hostsFromSection(section)
+		cfg.hostsFromSection(sectionStruct)
 	default:
-		cfg.credsFromSection(section, file.Filename)
+		cfg.credsFromSection(sectionStruct, file.Filename)
 	}
 	return nil
 }
@@ -207,7 +176,6 @@ func (cfg *sharedConfig) hostsFromSection(section ini.Section) {
 // credsFromSection 从section中获取密钥信息， 设置cfg.Creds字段
 func (cfg *sharedConfig) credsFromSection(section ini.Section, filename string) {
 
-	// Shared Credentials
 	akid := section.String(accessKeyIDKey)
 	secret := section.String(secretAccessKey)
 	if len(akid) > 0 && len(secret) > 0 {
@@ -219,55 +187,54 @@ func (cfg *sharedConfig) credsFromSection(section ini.Section, filename string) 
 	}
 }
 
-// SharedConfigLoadError is an error for the shared config file failed to load.
+// SharedConfigLoadError 加载配置文件失败错误
 type SharedConfigLoadError struct {
 	Filename string
 	Err      error
 }
 
-// Code is the short id of the error.
+// Code 错误码
 func (e SharedConfigLoadError) Code() string {
 	return "SharedConfigLoadError"
 }
 
-// Message is the description of the error
+// Message 是具体的错误描述信息
 func (e SharedConfigLoadError) Message() string {
 	return fmt.Sprintf("failed to load config file, %s", e.Filename)
 }
 
-// OrigErr is the underlying error that caused the failure.
+// OrigErr 是导致这个错误的具体原因
 func (e SharedConfigLoadError) OrigErr() error {
 	return e.Err
 }
 
-// Error satisfies the error interface.
+// Error 满足error接口
 func (e SharedConfigLoadError) Error() string {
 	return qerr.SprintError(e.Code(), e.Message(), "", e.Err)
 }
 
-// SharedConfigProfileNotExistsError is an error for the shared config when
-// the profile was not find in the config file.
-type SharedConfigProfileNotExistsError struct {
-	Profile string
+// SharedConfigSectionNotExistsError 代表配置文件的某个section不存在
+type SharedConfigSectionNotExistsError struct {
+	Section string
 	Err     error
 }
 
-// Code is the short id of the error.
-func (e SharedConfigProfileNotExistsError) Code() string {
+// Code 错误码
+func (e SharedConfigSectionNotExistsError) Code() string {
 	return "SharedConfigProfileNotExistsError"
 }
 
-// Message is the description of the error
-func (e SharedConfigProfileNotExistsError) Message() string {
-	return fmt.Sprintf("failed to get profile, %s", e.Profile)
+// Message 错误的具体描述信息
+func (e SharedConfigSectionNotExistsError) Message() string {
+	return fmt.Sprintf("failed to get section, %s", e.Section)
 }
 
-// OrigErr is the underlying error that caused the failure.
-func (e SharedConfigProfileNotExistsError) OrigErr() error {
+// OrigErr 导致该错误的起因
+func (e SharedConfigSectionNotExistsError) OrigErr() error {
 	return e.Err
 }
 
-// Error satisfies the error interface.
-func (e SharedConfigProfileNotExistsError) Error() string {
+// Error 实现error接口
+func (e SharedConfigSectionNotExistsError) Error() string {
 	return qerr.SprintError(e.Code(), e.Message(), "", e.Err)
 }

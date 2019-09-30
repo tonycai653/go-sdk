@@ -37,7 +37,7 @@ func (c *Kodo) StatRequest(bucket, key string) (req *request.Request, info *File
 		Scheme:      "http",
 		Path:        fmt.Sprintf("/stat/%s", qiniu.EncodedEntry(bucket, key)),
 		Method:      "POST",
-		Host:        c.Config.RsHost,
+		Host:        *c.Config.RsHost,
 		ContentType: defs.CONTENT_TYPE_JSON,
 		TokenType:   credentials.TokenQBox,
 		APIName:     "stat",

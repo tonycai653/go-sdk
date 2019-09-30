@@ -22,10 +22,8 @@ const logReqErrMsg = `DEBUG ERROR: Request %s/%s:
 ------------------------------------------------------`
 
 type logWriter struct {
-	// Logger is what we will use to log the payload of a response.
 	Logger qiniu.Logger
-	// buf stores the contents of what has been read
-	buf *bytes.Buffer
+	buf    *bytes.Buffer
 }
 
 func (logger *logWriter) Write(b []byte) (int, error) {
@@ -33,10 +31,10 @@ func (logger *logWriter) Write(b []byte) (int, error) {
 }
 
 type teeReaderCloser struct {
-	// io.Reader will be a tee reader that is used during logging.
-	// This structure will read from a body and write the contents to a logger.
+	// io.Reader 的值将会为tee reader, 用来从source读取内容，并且内容读取的内容写入到logger中
 	io.Reader
-	// Source is used just to close when we are done reading.
+
+	// Source数据来源
 	Source io.ReadCloser
 }
 
@@ -44,9 +42,8 @@ func (reader *teeReaderCloser) Close() error {
 	return reader.Source.Close()
 }
 
-// LogHTTPRequestHandler is a SDK request handler to log the HTTP request sent
-// to a service. Will include the HTTP request body if the LogLevel of the
-// request matches LogDebugWithHTTPBody.
+// LogHTTPRequestHandler 输出请求日志
+// 当LogLevel满足LogDebugWithHTTPBody的时候， 也输出请求体的日志
 var LogHTTPRequestHandler = request.NamedHandler{
 	Name: "qiniusdk.client.LogRequest",
 	Fn:   logRequest,
@@ -67,9 +64,6 @@ func logRequest(r *request.Request) {
 		if !bodySeekable {
 			r.SetReaderBody(qiniu.ReadSeekCloser(r.HTTPRequest.Body))
 		}
-		// Reset the request body because dumpRequest will re-wrap the r.HTTPRequest's
-		// Body as a NoOpCloser and will not be reset after read by the HTTP
-		// client reader.
 		r.ResetBody()
 	}
 
@@ -77,9 +71,7 @@ func logRequest(r *request.Request) {
 		r.ServiceName, r.Api.Name(), string(b)))
 }
 
-// LogHTTPRequestHeaderHandler is a SDK request handler to log the HTTP request sent
-// to a service. Will only log the HTTP request's headers. The request payload
-// will not be read.
+// LogHTTPRequestHeaderHandler 仅打印输出请求头的日志
 var LogHTTPRequestHeaderHandler = request.NamedHandler{
 	Name: "qiniusdk.client.LogRequestHeader",
 	Fn:   logRequestHeader,
@@ -107,9 +99,8 @@ const logRespErrMsg = `DEBUG ERROR: Response %s/%s:
 %s
 -----------------------------------------------------`
 
-// LogHTTPResponseHandler is a SDK request handler to log the HTTP response
-// received from a service. Will include the HTTP response body if the LogLevel
-// of the request matches LogDebugWithHTTPBody.
+// LogHTTPResponseHandler 输出响应的日志
+// 当LogLevel满足LogDebugWithHTTPBody的, 也输出响应体
 var LogHTTPResponseHandler = request.NamedHandler{
 	Name: "qiniusdk.client.LogResponse",
 	Fn:   logResponse,
@@ -164,9 +155,7 @@ func logResponse(r *request.Request) {
 	})
 }
 
-// LogHTTPResponseHeaderHandler is a SDK request handler to log the HTTP
-// response received from a service. Will only log the HTTP response's headers.
-// The response payload will not be read.
+// LogHTTPResponseHeaderHandler 输出响应信息日志，仅输出响应头信息
 var LogHTTPResponseHeaderHandler = request.NamedHandler{
 	Name: "qiniusdk.client.LogResponseHeader",
 	Fn:   logResponseHeader,

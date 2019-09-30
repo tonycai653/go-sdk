@@ -150,7 +150,7 @@ func handleSendError(r *request.Request, err error) {
 	ctx := r.Context()
 	select {
 	case <-ctx.Done():
-		r.Error = qerr.New(request.CanceledErrorCode,
+		r.Error = qerr.New(request.ErrCodeCanceled,
 			"request context canceled", ctx.Err())
 		r.Retryable = qiniu.Bool(false)
 	default:
@@ -247,7 +247,7 @@ var AfterRetryHandler = request.NamedHandler{Name: "core.AfterRetryHandler", Fn:
 		r.RetryDelay = r.RetryRules(r)
 
 		if err := qiniu.SleepWithContext(r.Context(), r.RetryDelay); err != nil {
-			r.Error = qerr.New(request.CanceledErrorCode,
+			r.Error = qerr.New(request.ErrCodeCanceled,
 				"request context canceled", err)
 			r.Retryable = qiniu.Bool(false)
 			return

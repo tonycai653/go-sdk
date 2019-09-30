@@ -7,7 +7,7 @@ import (
 	"github.com/qiniu/go-sdk/qiniu/request"
 )
 
-// A Config provides configuration to a service client instance.
+// Config 为服务客户端提供配置信息
 type Config struct {
 	Config   *qiniu.Config
 	Handlers request.Handlers
@@ -19,8 +19,7 @@ type ConfigProvider interface {
 	ClientConfig(cfgs ...*qiniu.Config) Config
 }
 
-// A Client implements the base client request and response handling
-// used by all service clients.
+// BaseClient 实现了请求和影响处理的基础逻辑
 type BaseClient struct {
 	request.Retryer
 
@@ -28,7 +27,7 @@ type BaseClient struct {
 	Handlers request.Handlers
 }
 
-// New will return a pointer to a new initialized service client.
+// New 返回一个BaseClient指针
 func New(cfg qiniu.Config, handlers request.Handlers, options ...func(*BaseClient)) *BaseClient {
 	svc := &BaseClient{
 		Config:   cfg,
@@ -43,11 +42,10 @@ func New(cfg qiniu.Config, handlers request.Handlers, options ...func(*BaseClien
 		cfg.Logger.Log(s)
 		fallthrough
 	default:
-		maxRetries := qiniu.IntValue(cfg.MaxRetries)
-		if cfg.MaxRetries == nil || maxRetries == qiniu.UseServiceDefaultRetries {
-			maxRetries = 3
+		if cfg.MaxRetries == nil {
+			cfg.MaxRetries = qiniu.Int(3)
 		}
-		svc.Retryer = DefaultRetryer{NumMaxRetries: maxRetries}
+		svc.Retryer = DefaultRetryer{NumMaxRetries: qiniu.IntValue(cfg.MaxRetries)}
 	}
 
 	svc.AddDebugHandlers()

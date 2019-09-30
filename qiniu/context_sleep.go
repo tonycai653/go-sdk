@@ -5,11 +5,7 @@ import (
 	"time"
 )
 
-// SleepWithContext will wait for the timer duration to expire, or the context
-// is canceled. Which ever happens first. If the context is canceled the Context's
-// error will be returned.
-//
-// Expects Context to always return a non-nil error if the Done channel is closed.
+// SleepWithContext 等待定时钟到期或者context被取消
 func SleepWithContext(ctx context.Context, dur time.Duration) error {
 	t := time.NewTimer(dur)
 	defer t.Stop()

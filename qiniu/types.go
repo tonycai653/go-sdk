@@ -5,27 +5,18 @@ import (
 	"sync"
 )
 
-// ReadSeekCloser wraps a io.Reader returning a ReaderSeekerCloser. Allows the
-// SDK to accept an io.Reader that is not also an io.Seeker for unsigned
-// streaming payload API operations.
-//
-// A ReadSeekCloser wrapping an nonseekable io.Reader used in an API
-// operation's input will prevent that operation being retried in the case of
-// network errors, and cause operation requests to fail if the operation
-// requires payload signing.
+// ReadSeekCloser 封装底层Reader, 使用实现Reader, Closer, Seeker接口
+// 如果底层的数据不是Seeker, 那么Seek操作什么也不做，同时在请求遇到错误的时候也不会重试，直接返回失败
 func ReadSeekCloser(r io.Reader) ReaderSeekerCloser {
 	return ReaderSeekerCloser{r}
 }
 
-// ReaderSeekerCloser represents a reader that can also delegate io.Seeker and
-// io.Closer interfaces to the underlying object if they are available.
+// ReaderSeekerCloser 实现了Reader, Seeker, Closer接口
 type ReaderSeekerCloser struct {
 	r io.Reader
 }
 
-// IsReaderSeekable returns if the underlying reader type can be seeked. A
-// io.Reader might not actually be seekable if it is the ReaderSeekerCloser
-// type.
+// IsReaderSeekable 判断包裹的底层Reader是否是个Seeker
 func IsReaderSeekable(r io.Reader) bool {
 	switch v := r.(type) {
 	case ReaderSeekerCloser:
@@ -39,13 +30,7 @@ func IsReaderSeekable(r io.Reader) bool {
 	}
 }
 
-// Read reads from the reader up to size of p. The number of bytes read, and
-// error if it occurred will be returned.
-//
-// If the reader is not an io.Reader zero bytes read, and nil error will be
-// returned.
-//
-// Performs the same functionality as io.Reader Read
+// Read 读取数据到切片p
 func (r ReaderSeekerCloser) Read(p []byte) (int, error) {
 	switch t := r.r.(type) {
 	case io.Reader:
@@ -54,12 +39,13 @@ func (r ReaderSeekerCloser) Read(p []byte) (int, error) {
 	return 0, nil
 }
 
-// Seek sets the offset for the next Read to offset, interpreted according to
-// whence: 0 means relative to the origin of the file, 1 means relative to the
-// current offset, and 2 means relative to the end. Seek returns the new offset
-// and an error, if any.
+// Seek 设置并且返回下次读取的位置
 //
-// If the ReaderSeekerCloser is not an io.Seeker nothing will be done.
+// 当whence为0， offset是相对于数据开始的偏移量
+// 当whence为1， offset是相对于当前读取位置的偏移量
+// 当whence为2， offset是相对于数据末尾的偏移量
+//
+// 如果r的底层Reader不是可Seek的， 那么什么也不做，直接返回0， nil
 func (r ReaderSeekerCloser) Seek(offset int64, whence int) (int64, error) {
 	switch t := r.r.(type) {
 	case io.Seeker:
@@ -68,14 +54,15 @@ func (r ReaderSeekerCloser) Seek(offset int64, whence int) (int64, error) {
 	return int64(0), nil
 }
 
-// IsSeeker returns if the underlying reader is also a seeker.
+// IsSeeker 判断是否底层的Reader是可Seek的
 func (r ReaderSeekerCloser) IsSeeker() bool {
 	_, ok := r.r.(io.Seeker)
 	return ok
 }
 
-// HasLen returns the length of the underlying reader if the value implements
-// the Len() int method.
+// HasLen 返回底层Reader的数据大小
+// 如果底层Reader实现了Len方法， 调用该方法获取Reader可读的数据大小， 否则返回0
+// 第二个参数bool表示是否获取成功, true - 成功， false - 失败
 func (r ReaderSeekerCloser) HasLen() (int, bool) {
 	type lenner interface {
 		Len() int
@@ -102,11 +89,9 @@ func (r ReaderSeekerCloser) GetLen() (int64, error) {
 	return -1, nil
 }
 
-// SeekerLen attempts to get the number of bytes remaining at the seeker's
-// current position.  Returns the number of bytes remaining or error.
+// SeekerLen 判断Seeker剩余数据的小大， 返回相应的数据大小，或者错误
+// 如果s是ReaderSeekerCloser， 并且封装的底层Reader是不可Seek的，那么返回-1, nil
 func SeekerLen(s io.Seeker) (int64, error) {
-	// Determine if the seeker is actually seekable. ReaderSeekerCloser
-	// hides the fact that a io.Readers might not actually be seekable.
 	switch v := s.(type) {
 	case ReaderSeekerCloser:
 		return v.GetLen()
@@ -136,9 +121,7 @@ func seekerLen(s io.Seeker) (int64, error) {
 	return endOffset - curOffset, nil
 }
 
-// Close closes the ReaderSeekerCloser.
-//
-// If the ReaderSeekerCloser is not an io.Closer nothing will be done.
+// Close 关闭ReaderSeekerCloser
 func (r ReaderSeekerCloser) Close() error {
 	switch t := r.r.(type) {
 	case io.Closer:
